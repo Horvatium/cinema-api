@@ -22,6 +22,7 @@ router.get('/', async (req, res) => {
                 films.duration_minutes,
                 films.age_rating,
                 films.poster_url,
+                films.backdrop_url,
                 rooms.name AS room_name,
                 rooms.capacity
             FROM screenings
