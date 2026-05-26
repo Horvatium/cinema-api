@@ -36,16 +36,17 @@ router.post('/', auth, async (req, res) => {
         return res.status(403).json({ message: 'Samo admin.' });
     }
 
-    const { title, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url } = req.body;
+    const { title, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url, imdb_url, trailer_url, cast_members } = req.body;
 
     if (!title || !genre || !duration_minutes || !age_rating) {
-        return res.status(400).json({ message: 'Naslov, žanr, dolžina filma in starostna ocena so potrebni.' });
+        return res.status(400).json({ message: 'Potrebni so: naslov, žanr, dolžina filma in starostna ocena.' });
     }
 
     try {
         const [result] = await db.query(
-            'INSERT INTO films (title, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [title, genre, duration_minutes, age_rating, synopsis || null, director || null, release_year || null, poster_url || null]
+            'INSERT INTO films (title, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url, imdb_url, trailer_url, cast_members) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [title, genre, duration_minutes, age_rating, synopsis || null, director || null, release_year || null, poster_url || null,
+            imdb_url || null, trailer_url || null, cast_members || null]
         );
         res.status(201).json({ message: 'Film dodan uspešno!', id: result.insertId });
     } catch (err) {
@@ -60,7 +61,8 @@ router.put('/:id', auth, async (req, res) => {
         return res.status(403).json({ message: 'Samo admin.' });
     }
 
-    const { title, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url } = req.body;
+    const { title, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url, imdb_url,
+        trailer_url, cast_members } = req.body;
 
     try {
         const [result] = await db.query(
@@ -72,9 +74,12 @@ router.put('/:id', auth, async (req, res) => {
                 synopsis = COALESCE(?, synopsis),
                 director = COALESCE(?, director),
                 release_year = COALESCE(?, release_year),
-                poster_url = COALESCE(?, poster_url)
+                poster_url = COALESCE(?, poster_url),
+                imdb_url = COALESCE(?, imdb_url),
+                trailer_url = COALESCE(?, trailer_url),
+                cast_members = COALESCE(?, cast_members)
              WHERE id = ?`,
-            [title, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url, req.params.id]
+            [title, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url, imdb_url, trailer_url, cast_members, req.params.id]
         );
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Film ni najden.' });
