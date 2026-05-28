@@ -17,6 +17,7 @@ router.get('/', async (req, res) => {
                 screenings.end_time,
                 screenings.price,
                 films.title AS film_title,
+                films.title_sl AS film_title_sl,
                 films.genre,
                 films.synopsis,
                 films.duration_minutes,
