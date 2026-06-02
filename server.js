@@ -4,14 +4,18 @@ require('dotenv').config();
 
 const app = express();
 
-//Middleware
+//Vmesna oprema
 app.use(cors());
 app.use(express.json());
 
-// Serve uploaded images as static files
-app.use('/uploads', express.static('uploads'));
 
-//Routes
+// Streži naložene slike s predpomnjenjem
+app.use('/uploads', express.static('uploads', {
+    maxAge: '7d',
+    immutable: true
+}));
+
+//Poti
 const authRoutes = require('./src/routes/auth');
 const filmRoutes = require('./src/routes/films');
 const screeningRoutes = require('./src/routes/screenings');
@@ -30,12 +34,12 @@ app.use('/api/reservations', reservationRoutes);
 app.use('/api/upload', uploadRoutes);
 
 
-//Test route
+//Testiraj pot
 app.get('/', (req, res) => {
     res.json({ message: 'Cinema API deluje!'});
 });
 
-//Start server
+//Zaženi strežnik
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Strežnik deluje na portu ${PORT}`);
