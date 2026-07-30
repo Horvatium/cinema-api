@@ -1,6 +1,6 @@
 const https = require('https');
 
-// Send push notification via Expo's push service
+// Pošlji potisno obvestilo prek Expove storitve za potisna obvestila
 const sendPushNotification = async (pushToken, title, body, data = {}) => {
     if (!pushToken || !pushToken.startsWith('ExponentPushToken')) {
         return;
@@ -31,13 +31,13 @@ const sendPushNotification = async (pushToken, title, body, data = {}) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
-                console.log(`Push sent to ${pushToken}: ${title}`);
+                console.log(`Potisno obvestilo poslano na ${pushToken}: ${title}`);
                 resolve(data);
             });
         });
 
         req.on('error', (err) => {
-            console.error('Push notification error:', err.message);
+            console.error('Napaka pri pošiljanju potisnega obvestila:', err.message);
             resolve(null);
         });
 

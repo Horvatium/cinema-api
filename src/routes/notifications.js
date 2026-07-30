@@ -3,23 +3,23 @@ const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
 
-// Save push token for a user
+// Shrani žeton za potisna obvestila uporabnika
 router.post('/token', auth, async (req, res) => {
     const { token } = req.body;
 
     if (!token) {
-        return res.status(400).json({ message: 'Token is required.' });
+        return res.status(400).json({ message: 'Žeton je obvezen.' });
     }
 
     try {
-        // Store token in users table
+        // Shrani žeton v tabelo uporabnikov
         await db.query(
             'UPDATE users SET push_token = ? WHERE id = ?',
             [token, req.user.id]
         );
-        res.json({ message: 'Push token saved.' });
+        res.json({ message: 'Žeton za potisna obvestila je shranjen.' });
     } catch (_err) {
-        res.status(500).json({ message: 'Server error.' });
+        res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
 

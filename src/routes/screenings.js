@@ -226,7 +226,7 @@ router.delete('/:id', auth, async (req, res) => {
     if (d.push_token) {
         sendPushNotification(
             d.push_token,
-            '⚠️ Screening Cancelled',
+            '⚠️ Predvajanje odpovedano',
             `${d.film_title} on ${new Date(d.start_time)
                 .toLocaleDateString('en-GB', {
                     weekday: 'short',

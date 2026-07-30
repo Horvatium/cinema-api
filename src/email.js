@@ -12,39 +12,39 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// ─── EMAIL TEMPLATES ──────────────────────────────────────────────────────────
+// PREDLOGE E-POŠTNIH SPOROČIL
 
 const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
     from: process.env.EMAIL_FROM,
     to: user.email,
-    subject: `🎬 Booking Confirmed — ${film}`,
+    subject: `🎬 Rezervacija potrjena — ${film}`,
     html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; 
             margin: 0 auto; background: #0a0a0a; color: #f0f0f0; 
             border-radius: 10px; overflow: hidden;">
             
-            <!-- Header -->
+            <!-- Glava -->
             <div style="background: #e50914; padding: 24px; text-align: center;">
                 <h1 style="margin: 0; color: white; font-size: 24px;">
-                    🎬 CinemaApp
+                    🎬 KinoPlex
                 </h1>
             </div>
 
-            <!-- Body -->
+            <!-- Vsebina -->
             <div style="padding: 32px;">
                 <h2 style="color: #fff; margin-bottom: 8px;">
-                    Booking Confirmed!
+                    Rezervacija potrjena!
                 </h2>
                 <p style="color: #aaa; margin-bottom: 24px;">
-                    Hi ${user.first_name}, your seats are reserved. 
-                    See you at the cinema!
+                    Pozdravljeni, ${user.first_name}, vaši sedeži so rezervirani.
+                    Se vidimo v kinu!
                 </p>
 
-                <!-- Booking Details -->
+                <!-- Podrobnosti rezervacije -->
                 <div style="background: #1a1a1a; border-radius: 8px; 
                     padding: 20px; margin-bottom: 24px;">
                     <h3 style="color: #e50914; margin: 0 0 16px 0;">
-                        Booking Details
+                        Podrobnosti rezervacije
                     </h3>
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
@@ -54,10 +54,10 @@ const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
                             </td>
                         </tr>
                         <tr>
-                            <td style="color: #aaa; padding: 6px 0;">Date</td>
+                            <td style="color: #aaa; padding: 6px 0;">Datum</td>
                             <td style="color: #fff;">
                                 ${new Date(screening.start_time)
-                                    .toLocaleDateString('en-GB', {
+                                    .toLocaleDateString('sl-SI', {
                                         weekday: 'long',
                                         year: 'numeric',
                                         month: 'long',
@@ -67,7 +67,7 @@ const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
                             </td>
                         </tr>
                         <tr>
-                            <td style="color: #aaa; padding: 6px 0;">Time</td>
+                            <td style="color: #aaa; padding: 6px 0;">Ura</td>
                             <td style="color: #fff;">
                                 ${new Date(screening.start_time)
                                     .toLocaleTimeString([], {
@@ -78,15 +78,15 @@ const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
                             </td>
                         </tr>
                         <tr>
-                            <td style="color: #aaa; padding: 6px 0;">Room</td>
+                            <td style="color: #aaa; padding: 6px 0;">Dvorana</td>
                             <td style="color: #fff;">${screening.room_name}</td>
                         </tr>
                         <tr>
-                            <td style="color: #aaa; padding: 6px 0;">Seats</td>
+                            <td style="color: #aaa; padding: 6px 0;">Sedeži</td>
                             <td style="color: #fff;">${seats}</td>
                         </tr>
                         <tr>
-                            <td style="color: #aaa; padding: 6px 0;">Total</td>
+                            <td style="color: #aaa; padding: 6px 0;">Skupaj</td>
                             <td style="color: #e50914; font-weight: bold; 
                                 font-size: 18px;">
                                 €${total}
@@ -96,14 +96,14 @@ const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
                 </div>
 
                 <p style="color: #aaa; font-size: 13px; text-align: center;">
-                    Please arrive 15 minutes before the screening starts.
+                    Prosimo, pridite 15 minut pred začetkom predvajanja.
                 </p>
             </div>
 
-            <!-- Footer -->
+            <!-- Noga -->
             <div style="background: #111; padding: 16px; text-align: center;">
                 <p style="color: #555; font-size: 12px; margin: 0;">
-                    CinemaApp · You are receiving this because you made a booking
+                    KinoPlex · To sporočilo ste prejeli, ker ste opravili rezervacijo
                 </p>
             </div>
         </div>
@@ -113,7 +113,7 @@ const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
 const reservationCancelledEmail = (user, film, screening) => ({
     from: process.env.EMAIL_FROM,
     to: user.email,
-    subject: `❌ Reservation Cancelled — ${film}`,
+    subject: `❌ Rezervacija preklicana — ${film}`,
     html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; 
             margin: 0 auto; background: #0a0a0a; color: #f0f0f0;
@@ -121,22 +121,22 @@ const reservationCancelledEmail = (user, film, screening) => ({
 
             <div style="background: #e50914; padding: 24px; text-align: center;">
                 <h1 style="margin: 0; color: white; font-size: 24px;">
-                    🎬 CinemaApp
+                    🎬 KinoPlex
                 </h1>
             </div>
 
             <div style="padding: 32px;">
                 <h2 style="color: #fff; margin-bottom: 8px;">
-                    Reservation Cancelled
+                    Rezervacija preklicana
                 </h2>
                 <p style="color: #aaa; margin-bottom: 24px;">
-                    Hi ${user.first_name}, your reservation has been cancelled.
+                    Pozdravljeni, ${user.first_name}, vaša rezervacija je bila preklicana.
                 </p>
 
                 <div style="background: #1a1a1a; border-radius: 8px; 
                     padding: 20px; margin-bottom: 24px;">
                     <h3 style="color: #e50914; margin: 0 0 16px 0;">
-                        Cancelled Booking
+                        Preklicana rezervacija
                     </h3>
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
@@ -146,10 +146,10 @@ const reservationCancelledEmail = (user, film, screening) => ({
                             </td>
                         </tr>
                         <tr>
-                            <td style="color: #aaa; padding: 6px 0;">Date</td>
+                            <td style="color: #aaa; padding: 6px 0;">Datum</td>
                             <td style="color: #fff;">
                                 ${new Date(screening.start_time)
-                                    .toLocaleDateString('en-GB', {
+                                    .toLocaleDateString('sl-SI', {
                                         weekday: 'long',
                                         year: 'numeric',
                                         month: 'long',
@@ -159,7 +159,7 @@ const reservationCancelledEmail = (user, film, screening) => ({
                             </td>
                         </tr>
                         <tr>
-                            <td style="color: #aaa; padding: 6px 0;">Time</td>
+                            <td style="color: #aaa; padding: 6px 0;">Ura</td>
                             <td style="color: #fff;">
                                 ${new Date(screening.start_time)
                                     .toLocaleTimeString([], {
@@ -173,14 +173,14 @@ const reservationCancelledEmail = (user, film, screening) => ({
                 </div>
 
                 <p style="color: #aaa; font-size: 14px;">
-                    We hope to see you at a future screening!
+                    Upamo, da vas vidimo na kakšnem prihodnjem predvajanju!
                 </p>
             </div>
 
             <div style="background: #111; padding: 16px; text-align: center;">
                 <p style="color: #555; font-size: 12px; margin: 0;">
-                    CinemaApp · You are receiving this because you 
-                    cancelled a booking
+                    KinoPlex · To sporočilo ste prejeli, ker ste 
+                    preklicali rezervacijo
                 </p>
             </div>
         </div>
@@ -190,7 +190,7 @@ const reservationCancelledEmail = (user, film, screening) => ({
 const screeningDeletedEmail = (user, film, screening) => ({
     from: process.env.EMAIL_FROM,
     to: user.email,
-    subject: `⚠️ Screening Cancelled — ${film}`,
+    subject: `⚠️ Predvajanje odpovedano — ${film}`,
     html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; 
             margin: 0 auto; background: #0a0a0a; color: #f0f0f0;
@@ -198,24 +198,24 @@ const screeningDeletedEmail = (user, film, screening) => ({
 
             <div style="background: #e50914; padding: 24px; text-align: center;">
                 <h1 style="margin: 0; color: white; font-size: 24px;">
-                    🎬 CinemaApp
+                    🎬 KinoPlex
                 </h1>
             </div>
 
             <div style="padding: 32px;">
                 <h2 style="color: #fff; margin-bottom: 8px;">
-                    Screening Cancelled
+                    Predvajanje odpovedano
                 </h2>
                 <p style="color: #aaa; margin-bottom: 24px;">
-                    Hi ${user.first_name}, we are sorry to inform you that 
-                    the following screening has been cancelled by the cinema.
-                    Your reservation has been automatically cancelled.
+                    Pozdravljeni, ${user.first_name}, žal vas moramo obvestiti, da je 
+                    kinematograf odpovedal spodnje predvajanje.
+                    Vaša rezervacija je bila samodejno preklicana.
                 </p>
 
                 <div style="background: #1a1a1a; border-radius: 8px;
                     padding: 20px; margin-bottom: 24px;">
                     <h3 style="color: #e50914; margin: 0 0 16px 0;">
-                        Cancelled Screening
+                        Odpovedano predvajanje
                     </h3>
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
@@ -225,10 +225,10 @@ const screeningDeletedEmail = (user, film, screening) => ({
                             </td>
                         </tr>
                         <tr>
-                            <td style="color: #aaa; padding: 6px 0;">Date</td>
+                            <td style="color: #aaa; padding: 6px 0;">Datum</td>
                             <td style="color: #fff;">
                                 ${new Date(screening.start_time)
-                                    .toLocaleDateString('en-GB', {
+                                    .toLocaleDateString('sl-SI', {
                                         weekday: 'long',
                                         year: 'numeric',
                                         month: 'long',
@@ -238,7 +238,7 @@ const screeningDeletedEmail = (user, film, screening) => ({
                             </td>
                         </tr>
                         <tr>
-                            <td style="color: #aaa; padding: 6px 0;">Time</td>
+                            <td style="color: #aaa; padding: 6px 0;">Ura</td>
                             <td style="color: #fff;">
                                 ${new Date(screening.start_time)
                                     .toLocaleTimeString([], {
@@ -252,29 +252,29 @@ const screeningDeletedEmail = (user, film, screening) => ({
                 </div>
 
                 <p style="color: #aaa; font-size: 14px;">
-                    We apologise for the inconvenience. 
-                    We hope to see you at a future screening!
+                    Opravičujemo se za nevšečnosti.
+                    Upamo, da vas vidimo na kakšnem prihodnjem predvajanju!
                 </p>
             </div>
 
             <div style="background: #111; padding: 16px; text-align: center;">
                 <p style="color: #555; font-size: 12px; margin: 0;">
-                    CinemaApp · This screening was cancelled by the cinema
+                    KinoPlex · To predvajanje je odpovedal kinematograf
                 </p>
             </div>
         </div>
     `
 });
 
-// ─── SEND FUNCTION ────────────────────────────────────────────────────────────
+// FUNKCIJA ZA POŠILJANJE
 
 const sendEmail = async (mailOptions) => {
     try {
         await transporter.sendMail(mailOptions);
-        console.log(`Email sent to ${mailOptions.to}`);
+        console.log(`E-pošta poslana na ${mailOptions.to}`);
     } catch (err) {
-        // Log but don't crash the app if email fails
-        console.error('Email send error:', err.message);
+        // Napako zabeleži, a ne dovoli, da bi zrušila aplikacijo
+        console.error('Napaka pri pošiljanju e-pošte:', err.message);
     }
 };
 
