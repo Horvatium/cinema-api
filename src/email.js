@@ -1,19 +1,8 @@
-const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    family: 4,
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 
 // PREDLOGE E-POŠTNIH SPOROČIL
 
@@ -270,11 +259,22 @@ const screeningDeletedEmail = (user, film, screening) => ({
 });
 
 // FUNKCIJA ZA POŠILJANJE
-
 const sendEmail = async (mailOptions) => {
     try {
-        await transporter.sendMail(mailOptions);
-        console.log(`E-pošta poslana na ${mailOptions.to}`);
+        const { data, error } = await resend.emails.send({
+            from: mailOptions.from || 'KinoPlex <onboarding@resend.dev>',
+            to: mailOptions.to,
+            subject: mailOptions.subject,
+            html: mailOptions.html,
+        });
+
+        if (error) {
+            console.error('Napaka pri pošiljanju e-pošte:',
+                error.message || JSON.stringify(error));
+            return;
+        }
+
+        console.log(`E-pošta poslana na ${mailOptions.to} (id: ${data?.id})`);
     } catch (err) {
         // Napako zabeleži, a ne dovoli, da bi zrušila aplikacijo
         console.error('Napaka pri pošiljanju e-pošte:', err.message);
