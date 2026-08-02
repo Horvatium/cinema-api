@@ -119,7 +119,7 @@ router.post('/', auth, async (req, res) => {
             JOIN reservation_seats ON seats.id = reservation_seats.seat_id
             JOIN reservations ON reservation_seats.reservation_id = reservations.id
             WHERE reservations.screening_id = ?
-            AND reservations.status != 'cancelled'
+            AND reservations.status != 'canceled'
             AND seats.id IN (?)
         `, [screening_id, seat_ids]);
 
@@ -149,7 +149,7 @@ router.post('/', auth, async (req, res) => {
         // Končaj transakcijo – shrani vse v bazo podatkov
        await connection.commit();
 
-// Fetch details needed for the email
+// Pridobi podatke, potrebne za e-pošto
 const [emailData] = await db.query(`
     SELECT 
         users.first_name, users.email,
@@ -216,10 +216,10 @@ router.put('/:id/cancel', auth, async (req, res) => {
 
         await db.query(
     'UPDATE reservations SET status = ? WHERE id = ?',
-    ['cancelled', req.params.id]
+    ['canceled', req.params.id]
 );
 
-// Fetch details for cancellation email
+// Pridobi podrobnosti za e-poštno sporočilo o preklicu
 const [emailData] = await db.query(`
     SELECT
         users.first_name, users.email,

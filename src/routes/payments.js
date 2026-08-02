@@ -27,7 +27,7 @@ router.post('/create-intent', auth, async (req, res) => {
             JOIN reservation_seats ON seats.id = reservation_seats.seat_id
             JOIN reservations ON reservation_seats.reservation_id = reservations.id
             WHERE reservations.screening_id = ?
-            AND reservations.status != 'cancelled'
+            AND reservations.status != 'canceled'
             AND seats.id IN (?)
         `, [screening_id, seat_ids]);
 
@@ -94,7 +94,7 @@ router.post('/confirm', auth, async (req, res) => {
                 JOIN reservation_seats ON seats.id = reservation_seats.seat_id
                 JOIN reservations ON reservation_seats.reservation_id = reservations.id
                 WHERE reservations.screening_id = ?
-                AND reservations.status != 'cancelled'
+                AND reservations.status != 'canceled'
                 AND seats.id IN (?)
             `, [screening_id, seat_ids]);
 
