@@ -3,6 +3,7 @@ const router = express.Router();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { sendReservationConfirmed } = require('../email');
 
 // USTVARI NAMERO PLAČILA 
 router.post('/create-intent', auth, async (req, res) => {
@@ -127,7 +128,44 @@ router.post('/confirm', auth, async (req, res) => {
             );
 
             await connection.commit();
+// Podatki za potrditveno e-sporočilo
+            try {
+                const [emailData] = await db.query(`
+                    SELECT
+                        users.first_name, users.email,
+        films.title AS film_title,
+        screenings.start_time,
+        rooms.name AS room_name,
+        GROUP_CONCAT(
+            CONCAT(seats.row_label, seats.seat_number)
+            ORDER BY seats.row_label, seats.seat_number
+        ) AS seat_labels
+    FROM reservations
+    JOIN users ON reservations.user_id = users.id
+    JOIN screenings ON reservations.screening_id = screenings.id
+    JOIN films ON screenings.film_id = films.id
+    JOIN rooms ON screenings.room_id = rooms.id
+    LEFT JOIN reservation_seats ON reservations.id = reservation_seats.reservation_id
+    LEFT JOIN seats ON reservation_seats.seat_id = seats.id
+    WHERE reservations.id = ?
+    GROUP BY reservations.id
+                `, [reservation_id]);
 
+                console.log('emailData rows (payments):', emailData.length);
+
+                if (emailData.length > 0) {
+                    const d = emailData[0];
+                    sendReservationConfirmed(
+                        { first_name: d.first_name, email: d.email },
+        d.film_title,
+        { start_time: d.start_time, room_name: d.room_name },
+        d.seat_labels,
+                        total_price
+                    );
+                }
+            } catch (mailErr) {
+                console.error('Napaka pri pripravi e-sporočila:', mailErr.message);
+            }
             res.status(201).json({
                 message: 'Plačilo je uspelo, rezervacija je potrjena!',
                 reservation_id,
