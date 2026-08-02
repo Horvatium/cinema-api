@@ -210,7 +210,7 @@ router.put('/:id/cancel', auth, async (req, res) => {
             return res.status(404).json({ message: 'Rezervacija ni najdena.' });
         }
 
-        if (reservations[0].status === 'cancelled') {
+        if (reservations[0].status === 'canceled') {
             return res.status(400).json({ message: 'Rezervacija je že preklicana.' });
         }
 

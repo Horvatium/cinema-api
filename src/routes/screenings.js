@@ -69,7 +69,7 @@ router.get('/:id/seats', async (req, res) => {
     LEFT JOIN reservation_seats ON seats.id = reservation_seats.seat_id
     LEFT JOIN reservations ON reservation_seats.reservation_id = reservations.id
         AND reservations.screening_id = ?
-        AND reservations.status != 'cancelled'
+        AND reservations.status != 'canceled'
     WHERE seats.room_id = (
         SELECT room_id FROM screenings WHERE id = ?
     )
