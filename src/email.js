@@ -1,7 +1,9 @@
 require('dotenv').config();
 
 const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+    ? new Resend(process.env.RESEND_API_KEY)
+    : null;
 
 
 // PREDLOGE E-POŠTNIH SPOROČIL
@@ -260,6 +262,11 @@ const screeningDeletedEmail = (user, film, screening) => ({
 
 // FUNKCIJA ZA POŠILJANJE
 const sendEmail = async (mailOptions) => {
+    if (!resend) {
+        console.error('RESEND_API_KEY ni nastavljen — e-pošta ni poslana.');
+        return;
+    }
+
     try {
         const { data, error } = await resend.emails.send({
             from: mailOptions.from || 'KinoPlex <onboarding@resend.dev>',
