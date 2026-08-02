@@ -62,14 +62,18 @@ router.get('/:id/seats', async (req, res) => {
         seats.row_label,
         seats.seat_number,
         CASE 
-            WHEN reservations.id IS NOT NULL THEN 'taken'
+            WHEN EXISTS (
+                SELECT 1
+                FROM reservation_seats
+                JOIN reservations 
+                    ON reservation_seats.reservation_id = reservations.id
+                WHERE reservation_seats.seat_id = seats.id
+                    AND reservations.screening_id = ?
+                    AND reservations.status != 'canceled'
+            ) THEN 'taken'
             ELSE 'available'
         END AS status
     FROM seats
-    LEFT JOIN reservation_seats ON seats.id = reservation_seats.seat_id
-    LEFT JOIN reservations ON reservation_seats.reservation_id = reservations.id
-        AND reservations.screening_id = ?
-        AND reservations.status != 'canceled'
     WHERE seats.room_id = (
         SELECT room_id FROM screenings WHERE id = ?
     )
