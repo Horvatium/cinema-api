@@ -140,7 +140,7 @@ router.put('/:id', auth, async (req, res) => {
             'SELECT * FROM screenings WHERE id = ?', [req.params.id]
         );
         if (existing.length === 0) {
-            return res.status(404).json({ message: 'Predastava ni najdena.' });
+            return res.status(404).json({ message: 'Predstava ni najdena.' });
         }
 
         // Preveri morebitne konflikte, razen trenutne predstave
@@ -159,7 +159,7 @@ router.put('/:id', auth, async (req, res) => {
             }
         }
 
-        // Preverite, koliko rezervacij obstaja za to predstavo
+        // Preveri, koliko rezervacij obstaja za to predstavo
         const [reservations] = await db.query(`
             SELECT COUNT(*) as count FROM reservations
             WHERE screening_id = ? AND status = 'confirmed'
@@ -187,7 +187,7 @@ router.put('/:id', auth, async (req, res) => {
     }
 });
 
-// ZBRIŠI PREDSTAVO (admin only)
+// ZBRIŠI PREDSTAVO (samo skrbniki)
 router.delete('/:id', auth, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Samo skrbniki.' });
