@@ -43,7 +43,7 @@ router.get('/my', auth, async (req, res) => {
 // Pridobi vse rezervacije (samo admin)
 router.get('/', auth, async (req, res) => {
     if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo admin.' });
+        return res.status(403).json({ message: 'Samo skrbniki.' });
     }
 
     try {

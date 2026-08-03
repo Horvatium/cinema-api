@@ -33,7 +33,7 @@ router.get('/:id', async (req, res) => {
 // DODAJ FIM (samo admin)
 router.post('/', auth, async (req, res) => {
     if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo admin.' });
+        return res.status(403).json({ message: 'Samo skrbniki.' });
     }
 
     const { title, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url, imdb_url, trailer_url, cast_members } = req.body;
@@ -58,7 +58,7 @@ router.post('/', auth, async (req, res) => {
 // UREDI FILM (samo admin)
 router.put('/:id', auth, async (req, res) => {
     if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo admin.' });
+        return res.status(403).json({ message: 'Samo skrbniki.' });
     }
 
     const { title, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url, imdb_url,
@@ -94,7 +94,7 @@ router.put('/:id', auth, async (req, res) => {
 // ZBRIŠI FILM (samo admin)
 router.delete('/:id', auth, async (req, res) => {
     if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo admin.' });
+        return res.status(403).json({ message: 'Samo skrbniki.' });
     }
 
     try {

@@ -90,7 +90,7 @@ router.get('/:id/seats', async (req, res) => {
 // DODAJ PREDSTAVO (samo admin)
 router.post('/', auth, async (req, res) => {
     if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo admini.' });
+        return res.status(403).json({ message: 'Samo skrbniki.' });
     }
 
     const { film_id, room_id, start_time, end_time, price } = req.body;
@@ -128,22 +128,22 @@ router.post('/', auth, async (req, res) => {
 // UREDI PREDSTAVO (samo admin)
 router.put('/:id', auth, async (req, res) => {
     if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admins only.' });
+        return res.status(403).json({ message: 'Samo skrbniki.' });
     }
 
     const { film_id, room_id, start_time, end_time, price } = req.body;
 
 
     try {
-        // Check screening exists
+        // Preveri ali predstava obstaja
         const [existing] = await db.query(
             'SELECT * FROM screenings WHERE id = ?', [req.params.id]
         );
         if (existing.length === 0) {
-            return res.status(404).json({ message: 'Screening not found.' });
+            return res.status(404).json({ message: 'Predastava ni najdena.' });
         }
 
-        // Check for conflicts excluding current screening
+        // Preveri morebitne konflikte, razen trenutne predstave
         if (room_id && start_time && end_time) {
             const [conflicts] = await db.query(`
                 SELECT id FROM screenings
@@ -154,12 +154,12 @@ router.put('/:id', auth, async (req, res) => {
 
             if (conflicts.length > 0) {
                 return res.status(409).json({
-                    message: 'This room is already booked during that time.'
+                    message: 'Ta dvorana je v tem času že rezervirana.'
                 });
             }
         }
 
-        // Check how many reservations exist for this screening
+        // Preverite, koliko rezervacij obstaja za to predstavo
         const [reservations] = await db.query(`
             SELECT COUNT(*) as count FROM reservations
             WHERE screening_id = ? AND status = 'confirmed'
@@ -177,24 +177,24 @@ router.put('/:id', auth, async (req, res) => {
         );
 
         res.json({
-            message: 'Screening updated successfully!',
+            message: 'Predstava uspešno posodobljena!',
             affectedReservations: reservations[0].count
         });
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: 'Server error.' });
+        res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
 
 // ZBRIŠI PREDSTAVO (admin only)
 router.delete('/:id', auth, async (req, res) => {
     if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admins only.' });
+        return res.status(403).json({ message: 'Samo skrbniki.' });
     }
 
     try {
-        // Get screening details and all affected users before deleting
+        // Pred brisanjem pridobi podrobnosti predstave in vse prizadete uporabnike
         const [affected] = await db.query(`
             SELECT
                 users.first_name, users.email,
@@ -216,17 +216,17 @@ router.delete('/:id', auth, async (req, res) => {
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Screening not found.' });
+            return res.status(404).json({ message: 'Predstava ni najdena.' });
         }
 
-        // Send email to every affected customer
+        // Pošlji e-pošto vsem prizadetim strankam
         affected.forEach(d => {
             sendScreeningDeleted(
                 { first_name: d.first_name, email: d.email },
                 d.film_title,
                 { start_time: d.start_time, room_name: d.room_name }
             );
-            // Send push notification if they have a token
+            // Pošlji potisno obvestilo, če imajo žeton
     if (d.push_token) {
         sendPushNotification(
             d.push_token,
@@ -236,19 +236,19 @@ router.delete('/:id', auth, async (req, res) => {
                     weekday: 'short',
                     month: 'short',
                     day: 'numeric'
-                })} has been cancelled.`,
+                })} je bilo odpovedano.`,
             { type: 'screening_cancelled' }
         );
     }
         });
 
         res.json({
-            message: `Screening deleted. ${affected.length} customer(s) notified.`
+            message: `Predstava izbrisana. ${affected.length} uporabnik(ov) obveščenih.`
         });
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: 'Server error.' });
+        res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
 
