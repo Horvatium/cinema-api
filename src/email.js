@@ -4,6 +4,8 @@ const { Resend } = require('resend');
 const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
+const formatPrice = (value) =>
+  `${Number(value).toFixed(2).replace(".", ",")} €`;
 
 
 // PREDLOGE E-POŠTNIH SPOROČIL
@@ -83,7 +85,7 @@ const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
                             <td style="color: #aaa; padding: 6px 0;">Skupaj</td>
                             <td style="color: #e50914; font-weight: bold; 
                                 font-size: 18px;">
-                                €${total}
+                                ${formatPrice(total)}
                             </td>
                         </tr>
                     </table>
