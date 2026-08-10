@@ -119,7 +119,8 @@ router.post('/', auth, async (req, res) => {
             JOIN reservation_seats ON seats.id = reservation_seats.seat_id
             JOIN reservations ON reservation_seats.reservation_id = reservations.id
             WHERE reservations.screening_id = ?
-            AND reservations.status != 'canceled'
+            AND (reservations.status = 'confirmed'
+     OR (reservations.status = 'pending' AND reservations.expires_at > NOW()))
             AND seats.id IN (?)
         `, [screening_id, seat_ids]);
 

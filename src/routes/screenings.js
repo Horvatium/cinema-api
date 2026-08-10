@@ -69,7 +69,8 @@ router.get('/:id/seats', async (req, res) => {
                     ON reservation_seats.reservation_id = reservations.id
                 WHERE reservation_seats.seat_id = seats.id
                     AND reservations.screening_id = ?
-                    AND reservations.status != 'canceled'
+                    AND (reservations.status = 'confirmed'
+                    OR (reservations.status = 'pending' AND reservations.expires_at > NOW()))
             ) THEN 'taken'
             ELSE 'available'
         END AS status
