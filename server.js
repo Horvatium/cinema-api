@@ -32,6 +32,7 @@ app.use('/api/films', filmRoutes);
 app.use('/api/screenings', screeningRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/upload', uploadRoutes);
+app.set('trust proxy', 1);
 
 
 //Testiraj pot
