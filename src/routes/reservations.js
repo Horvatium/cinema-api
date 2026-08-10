@@ -100,7 +100,7 @@ router.post('/', auth, async (req, res) => {
 
         // Preveri ali obstaja predstava in pridobi ceno
         const [screenings] = await connection.query(
-            'SELECT * FROM screenings WHERE id = ?', [screening_id]
+            'SELECT * FROM screenings WHERE id = ? AND active = 1', [screening_id]
         );
         if (screenings.length === 0) {
             await connection.rollback();

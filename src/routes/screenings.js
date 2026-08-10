@@ -34,7 +34,7 @@ router.get('/', async (req, res) => {
             FROM screenings
             JOIN films ON screenings.film_id = films.id
             JOIN rooms ON screenings.room_id = rooms.id
-            WHERE screenings.start_time > NOW()
+            WHERE screenings.active = 1 AND screenings.start_time > NOW()
             ORDER BY screenings.start_time ASC
         `);
         res.json(screenings);
@@ -48,7 +48,7 @@ router.get('/', async (req, res) => {
 router.get('/:id/seats', async (req, res) => {
     try {
         const [screening] = await db.query(
-            'SELECT * FROM screenings WHERE id = ?', [req.params.id]
+            'SELECT * FROM screenings WHERE id = ? AND active = 1', [req.params.id]
         );
         if (screening.length === 0) {
             return res.status(404).json({ message: 'Predstava ni najdena.' });
@@ -104,7 +104,7 @@ router.post('/', auth, async (req, res) => {
         // Preveri ali obstajajo neskladja v urniku za isto dvorano
         const [conflicts] = await db.query(`
             SELECT id FROM screenings 
-            WHERE room_id = ?
+            WHERE room_id = ? AND active = 1
             AND id != COALESCE(?, 0)
             AND (
                 (start_time < ? AND end_time > ?)
@@ -138,7 +138,7 @@ router.put('/:id', auth, async (req, res) => {
     try {
         // Preveri ali predstava obstaja
         const [existing] = await db.query(
-            'SELECT * FROM screenings WHERE id = ?', [req.params.id]
+            'SELECT * FROM screenings WHERE id = ? AND active = 1', [req.params.id]
         );
         if (existing.length === 0) {
             return res.status(404).json({ message: 'Predstava ni najdena.' });
@@ -148,7 +148,7 @@ router.put('/:id', auth, async (req, res) => {
         if (room_id && start_time && end_time) {
             const [conflicts] = await db.query(`
                 SELECT id FROM screenings
-                WHERE room_id = ?
+                WHERE room_id = ? AND active = 1
                 AND id != ?
                 AND (start_time < ? AND end_time > ?)
             `, [room_id, req.params.id, end_time, start_time]);
@@ -213,13 +213,21 @@ router.delete('/:id', auth, async (req, res) => {
         `, [req.params.id]);
 
         const [result] = await db.query(
-            'DELETE FROM screenings WHERE id = ?', [req.params.id]
+            'UPDATE screenings SET active = 0 WHERE id = ? AND active = 1',
+            [req.params.id]
         );
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Predstava ni najdena.' });
         }
 
+        // Rezervacije ostanejo v bazi, a se označijo za preklicane
+        await db.query(
+            "UPDATE reservations SET status = 'canceled' WHERE screening_id = ? AND status != 'canceled'",
+            [req.params.id]
+        );
+
+        
         // Pošlji e-pošto vsem prizadetim strankam
         affected.forEach(d => {
             sendScreeningDeleted(
@@ -232,7 +240,7 @@ router.delete('/:id', auth, async (req, res) => {
         sendPushNotification(
             d.push_token,
             '⚠️ Predvajanje odpovedano',
-            `${d.film_title} on ${new Date(d.start_time)
+            `${d.film_title} dne ${new Date(d.start_time)
                 .toLocaleDateString('en-GB', {
                     weekday: 'short',
                     month: 'short',
