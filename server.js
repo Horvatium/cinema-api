@@ -1,12 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-
+const fs = require('fs');
 const app = express();
 
 //Vmesna oprema
 app.use(cors());
 app.use(express.json());
+
+// Disk se priklopi prazen, zato mapo ustvarimo ob zagonu
+fs.mkdirSync('uploads/posters', { recursive: true });
 
 
 // Streži naložene slike s predpomnjenjem
@@ -14,6 +17,7 @@ app.use('/uploads', express.static('uploads', {
     maxAge: '7d',
     immutable: true
 }));
+
 
 //Poti
 const authRoutes = require('./src/routes/auth');
@@ -40,7 +44,7 @@ app.get('/', (req, res) => {
     res.json({ message: 'Cinema API deluje!'});
 });
 
-//Zaženi strežnikcd cinemap
+//Zaženi strežnik cinemap
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Strežnik deluje na portu ${PORT}`);
