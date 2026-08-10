@@ -128,7 +128,7 @@ router.post('/', auth, async (req, res) => {
 
         if (takenSeats.length > 0) {
             await connection.rollback();
-            return res.status(409).json({ message: 'One or more selected seats are already taken.' });
+            return res.status(409).json({ message: 'Eden ali več izbranih sedežev je že zasedeno.' });
         }
 
         // Izračunaj končno ceno

@@ -30,7 +30,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// DODAJ FIM (samo admin)
+// DODAJ FILM (samo admin)
 router.post('/', auth, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Samo skrbniki.' });
