@@ -66,8 +66,24 @@ const samoSkrbnik = (req, res, next) => {
     next();
 };
 
+// Ovoj okoli multerja, da se napake vrnejo kot JSON in ne kot privzeta stran 500
+const naloziPlakat = (req, res, next) => {
+    upload.single('poster')(req, res, (err) => {
+        if (err instanceof multer.MulterError) {
+            const sporocilo = err.code === 'LIMIT_FILE_SIZE'
+                ? 'Datoteka presega dovoljeno velikost 5 MB.'
+                : 'Napaka pri nalaganju datoteke.';
+            return res.status(400).json({ message: sporocilo });
+        }
+        if (err) {
+            return res.status(400).json({ message: err.message });
+        }
+        next();
+    });
+};
+
 // ─── NALAGANJE PLAKATA ─────────────────────────────────────────────────────────
-router.post('/poster', auth, samoSkrbnik, upload.single('poster'), (req, res) => {
+router.post('/poster', auth, samoSkrbnik, naloziPlakat, (req, res) => {
     if (!req.file) {
         return res.status(400).json({ message: 'Nobena datoteka ni bila naložena.' });
     }
