@@ -29,6 +29,7 @@ router.get('/my', auth, async (req, res) => {
             LEFT JOIN reservation_seats ON reservations.id = reservation_seats.reservation_id
             LEFT JOIN seats ON reservation_seats.seat_id = seats.id
             WHERE reservations.user_id = ?
+            AND reservations.status != 'pending'
             GROUP BY reservations.id
             ORDER BY reservations.reserved_at DESC`, 
             [req.user.id]);
@@ -70,6 +71,7 @@ router.get('/', auth, async (req, res) => {
             JOIN rooms ON screenings.room_id = rooms.id
             LEFT JOIN reservation_seats ON reservations.id = reservation_seats.reservation_id
             LEFT JOIN seats ON reservation_seats.seat_id = seats.id
+            WHERE reservations.status != 'pending'
             GROUP BY reservations.id
             ORDER BY reservations.reserved_at DESC
         `);
