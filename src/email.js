@@ -263,6 +263,7 @@ const screeningDeletedEmail = (user, film, screening) => ({
 });
 
 const verifyEmailTemplate = (user, link) => ({
+    from: process.env.EMAIL_FROM,
     to: user.email,
     subject: 'Potrdite svoj elektronski naslov — KinoPlex',
     html: `
