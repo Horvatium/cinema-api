@@ -241,7 +241,7 @@ router.delete('/:id', auth, async (req, res) => {
             d.push_token,
             '⚠️ Predvajanje odpovedano',
             `${d.film_title} dne ${new Date(d.start_time)
-                .toLocaleDateString('en-GB', {
+                .toLocaleDateString('sl-SI', {
                     weekday: 'short',
                     month: 'short',
                     day: 'numeric'

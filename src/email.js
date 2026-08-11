@@ -66,9 +66,10 @@ const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
                             <td style="color: #aaa; padding: 6px 0;">Ura</td>
                             <td style="color: #fff;">
                                 ${new Date(screening.start_time)
-                                    .toLocaleTimeString([], {
+                                    .toLocaleTimeString('sl-SI', {
                                         hour: '2-digit',
-                                        minute: '2-digit'
+                                        minute: '2-digit',
+                                        hour12: false
                                     })
                                 }
                             </td>
@@ -158,9 +159,10 @@ const reservationCancelledEmail = (user, film, screening) => ({
                             <td style="color: #aaa; padding: 6px 0;">Ura</td>
                             <td style="color: #fff;">
                                 ${new Date(screening.start_time)
-                                    .toLocaleTimeString([], {
+                                    .toLocaleTimeString('sl-SI', {
                                         hour: '2-digit',
-                                        minute: '2-digit'
+                                        minute: '2-digit',
+                                        hour12: false
                                     })
                                 }
                             </td>
@@ -237,9 +239,10 @@ const screeningDeletedEmail = (user, film, screening) => ({
                             <td style="color: #aaa; padding: 6px 0;">Ura</td>
                             <td style="color: #fff;">
                                 ${new Date(screening.start_time)
-                                    .toLocaleTimeString([], {
+                                    .toLocaleTimeString('sl-SI', {
                                         hour: '2-digit',
-                                        minute: '2-digit'
+                                        minute: '2-digit',
+                                        hour12: false
                                     })
                                 }
                             </td>
