@@ -262,6 +262,28 @@ const screeningDeletedEmail = (user, film, screening) => ({
     `
 });
 
+const verifyEmailTemplate = (user, link) => ({
+    to: user.email,
+    subject: 'Potrdite svoj elektronski naslov — KinoPlex',
+    html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Pozdravljeni, ${user.first_name}!</h2>
+            <p>Za dokončanje registracije v sistemu KinoPlex potrdite svoj
+               elektronski naslov s klikom na spodnjo povezavo.</p>
+            <p style="margin: 24px 0;">
+                <a href="${link}"
+                   style="background:#e50914;color:#fff;padding:12px 24px;
+                          text-decoration:none;border-radius:6px;">
+                    Potrdi elektronski naslov
+                </a>
+            </p>
+            <p style="color:#666;font-size:13px;">
+                Če povezava ne deluje, jo prilepite v brskalnik:<br>${link}
+            </p>
+        </div>
+    `
+});
+
 // FUNKCIJA ZA POŠILJANJE
 const sendEmail = async (mailOptions) => {
     if (!resend) {
@@ -299,4 +321,9 @@ module.exports = {
 
     sendScreeningDeleted: (user, film, screening) =>
         sendEmail(screeningDeletedEmail(user, film, screening)),
+
+    sendVerifyEmail: (user, link) =>
+        sendEmail(verifyEmailTemplate(user, link))
+
+
 };
