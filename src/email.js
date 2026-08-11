@@ -57,7 +57,8 @@ const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
                                         weekday: 'long',
                                         year: 'numeric',
                                         month: 'long',
-                                        day: 'numeric'
+                                        day: 'numeric',
+                                        timeZone: 'UTC',
                                     })
                                 }
                             </td>
@@ -69,7 +70,8 @@ const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
                                     .toLocaleTimeString('sl-SI', {
                                         hour: '2-digit',
                                         minute: '2-digit',
-                                        hour12: false
+                                        hour12: false,
+                                        timeZone: 'UTC',
                                     })
                                 }
                             </td>
@@ -150,7 +152,8 @@ const reservationCancelledEmail = (user, film, screening) => ({
                                         weekday: 'long',
                                         year: 'numeric',
                                         month: 'long',
-                                        day: 'numeric'
+                                        day: 'numeric',
+                                        timeZone: 'UTC',
                                     })
                                 }
                             </td>
@@ -162,7 +165,8 @@ const reservationCancelledEmail = (user, film, screening) => ({
                                     .toLocaleTimeString('sl-SI', {
                                         hour: '2-digit',
                                         minute: '2-digit',
-                                        hour12: false
+                                        hour12: false,
+                                        timeZone: 'UTC',
                                     })
                                 }
                             </td>
@@ -230,7 +234,8 @@ const screeningDeletedEmail = (user, film, screening) => ({
                                         weekday: 'long',
                                         year: 'numeric',
                                         month: 'long',
-                                        day: 'numeric'
+                                        day: 'numeric',
+                                        timeZone: 'UTC',
                                     })
                                 }
                             </td>
@@ -242,7 +247,8 @@ const screeningDeletedEmail = (user, film, screening) => ({
                                     .toLocaleTimeString('sl-SI', {
                                         hour: '2-digit',
                                         minute: '2-digit',
-                                        hour12: false
+                                        hour12: false,
+                                        timeZone: 'UTC',
                                     })
                                 }
                             </td>
