@@ -174,10 +174,7 @@ const [emailData] = await db.query(`
     GROUP BY reservations.id
 `, [reservation_id]);
 
-console.log('emailData rows:', emailData.length);
-
 if (emailData.length > 0) {
-    console.log('poslano na:', emailData[0].email);
     const d = emailData[0];
     sendReservationConfirmed(
         { first_name: d.first_name, email: d.email },

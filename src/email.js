@@ -301,9 +301,14 @@ const sendEmail = async (mailOptions) => {
         return;
     }
 
+    if (!mailOptions.from) {
+        console.error('EMAIL_FROM ni nastavljen — e-pošta ni poslana.');
+        return;
+    }
+
     try {
         const { data, error } = await resend.emails.send({
-            from: mailOptions.from || 'KinoPlex <onboarding@resend.dev>',
+            from: mailOptions.from,
             to: mailOptions.to,
             subject: mailOptions.subject,
             html: mailOptions.html,
@@ -315,7 +320,7 @@ const sendEmail = async (mailOptions) => {
             return;
         }
 
-        console.log(`E-pošta poslana na ${mailOptions.to} (id: ${data?.id})`);
+        console.log(`E-pošta poslana (id: ${data?.id})`);
     } catch (err) {
         // Napako zabeleži, a ne dovoli, da bi zrušila aplikacijo
         console.error('Napaka pri pošiljanju e-pošte:', err.message);
