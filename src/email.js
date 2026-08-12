@@ -1,5 +1,5 @@
 require('dotenv').config();
-
+const db = require('./db');
 const { Resend } = require('resend');
 const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
@@ -7,6 +7,20 @@ const resend = process.env.RESEND_API_KEY
 const formatPrice = (value) =>
   `${Number(value).toFixed(2).replace(".", ",")} €`;
 
+
+// Zabeleži izid pošiljanja v podatkovno bazo
+const zabeleziPosiljanje = async (mailOptions, status, napaka = null) => {
+    try {
+        await db.query(
+            `INSERT INTO email_log (recipient, subject, status, error_message)
+             VALUES (?, ?, ?, ?)`,
+            [mailOptions.to, mailOptions.subject, status, napaka]
+        );
+    } catch (err) {
+        // Napaka pri beleženju ne sme vplivati na pošiljanje
+        console.error('Napaka pri beleženju e-pošte:', err.message);
+    }
+};
 
 // PREDLOGE E-POŠTNIH SPOROČIL
 
@@ -315,15 +329,18 @@ const sendEmail = async (mailOptions) => {
         });
 
         if (error) {
-            console.error('Napaka pri pošiljanju e-pošte:',
-                error.message || JSON.stringify(error));
+            const sporocilo = error.message || JSON.stringify(error);
+            console.error('Napaka pri pošiljanju e-pošte:', sporocilo);
+            await zabeleziPosiljanje(mailOptions, 'failed', sporocilo);
             return;
         }
 
         console.log(`E-pošta poslana (id: ${data?.id})`);
+        await zabeleziPosiljanje(mailOptions, 'sent');
     } catch (err) {
         // Napako zabeleži, a ne dovoli, da bi zrušila aplikacijo
         console.error('Napaka pri pošiljanju e-pošte:', err.message);
+        await zabeleziPosiljanje(mailOptions, 'failed', err.message);
     }
 };
 
