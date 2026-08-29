@@ -149,9 +149,10 @@ router.post('/login', async (req, res) => {
         }
 
         // Prijava je mogoča šele po potrditvi elektronskega naslova
-        if (!user.email_verified) {
+                if (!user.email_verified) {
             return res.status(403).json({
-                message: 'Elektronski naslov še ni potrjen. Preverite svojo e-pošto.'
+                message: 'Elektronski naslov še ni potrjen. Preverite svojo e-pošto.',
+                requiresVerification: true
             });
         }
 
