@@ -23,19 +23,54 @@ router.get('/', async (req, res) => {
 
 // DODAJANJE DVORANE
 router.post('/', auth, samoSkrbnik, async (req, res) => {
-    const { name, capacity } = req.body;
+    const { name, capacity, rows, seats_per_row } = req.body;
+
     if (!name || !capacity) {
         return res.status(400).json({ message: 'Ime in kapaciteta sta obvezna.' });
     }
+
+    // Privzeta razporeditev, če skrbnik ne poda svoje
+    const stevilkaVrst = rows || Math.ceil(capacity / 10);
+    const sedezevVVrsti = seats_per_row || Math.ceil(capacity / stevilkaVrst);
+
+    const connection = await db.getConnection();
+
     try {
-        const [result] = await db.query(
+        await connection.beginTransaction();
+
+        const [result] = await connection.query(
             'INSERT INTO rooms (name, capacity) VALUES (?, ?)',
             [name, capacity]
         );
-        res.status(201).json({ id: result.insertId, name, capacity });
+        const room_id = result.insertId;
+
+        // Ustvari sedeže v pravokotni razporeditvi: vrstice po črkah, sedeži po številkah
+        const crke = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const seatValues = [];
+        let stevecSedezev = 0;
+
+        for (let v = 0; v < stevilkaVrst && stevecSedezev < capacity; v++) {
+            const oznakaVrste = crke[v] || `V${v + 1}`;
+            for (let s = 1; s <= sedezevVVrsti && stevecSedezev < capacity; s++) {
+                seatValues.push([room_id, oznakaVrste, s]);
+                stevecSedezev++;
+            }
+        }
+
+        await connection.query(
+            'INSERT INTO seats (room_id, row_label, seat_number) VALUES ?',
+            [seatValues]
+        );
+
+        await connection.commit();
+        res.status(201).json({ id: room_id, name, capacity, seats_created: seatValues.length });
+
     } catch (err) {
+        await connection.rollback();
         console.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
+    } finally {
+        connection.release();
     }
 });
 
