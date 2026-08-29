@@ -84,6 +84,45 @@ router.get('/verify/:token', async (req, res) => {
     }
 });
 
+// PONOVNO POŠILJANJE POTRDITVENEGA SPOROČILA
+router.post('/resend-verification', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: 'Elektronski naslov je obvezen.' });
+    }
+
+    try {
+        const [users] = await db.query(
+            'SELECT id, first_name, email_verified FROM users WHERE email = ?',
+            [email]
+        );
+
+        // Enako sporočilo ne glede na izid, da naslova ni mogoče preveriti
+        const splosnOdgovor = {
+            message: 'Če naslov obstaja in še ni potrjen, smo nanj poslali novo potrditveno povezavo.'
+        };
+
+        if (users.length === 0 || users[0].email_verified) {
+            return res.json(splosnOdgovor);
+        }
+
+        const verifyToken = crypto.randomBytes(32).toString('hex');
+        await db.query(
+            'UPDATE users SET verify_token = ? WHERE id = ?',
+            [verifyToken, users[0].id]
+        );
+
+        const link = `${req.protocol}://${req.get('host')}/api/auth/verify/${verifyToken}`;
+        sendVerifyEmail({ first_name: users[0].first_name, email }, link);
+
+        res.json(splosnOdgovor);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Napaka na strežniku.' });
+    }
+});
+
 // PRIJAVA
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
