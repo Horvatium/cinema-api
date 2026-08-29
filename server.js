@@ -23,6 +23,7 @@ app.use('/uploads', express.static('uploads', {
 const authRoutes = require('./src/routes/auth');
 const filmRoutes = require('./src/routes/films');
 const screeningRoutes = require('./src/routes/screenings');
+const roomRoutes = require('./src/routes/rooms');
 const reservationRoutes = require('./src/routes/reservations');
 const uploadRoutes = require('./src/routes/upload');
 const auth = require('./src/middleware/auth');
@@ -34,6 +35,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/films', filmRoutes);
 app.use('/api/screenings', screeningRoutes);
+app.use('/api/rooms', roomRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/upload', uploadRoutes);
 app.set('trust proxy', 1);
