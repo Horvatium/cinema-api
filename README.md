@@ -22,12 +22,11 @@ aplikacija [cinema-mobile](https://github.com/Horvatium/cinema-mobile).
 - **MySQL** — relacijska podatkovna baza
 - **JWT (JSON Web Token)** — avtentikacija uporabnikov
 - **Stripe** — obdelava plačil
-- **Nodemailer** — pošiljanje e-poštnih obvestil
+- **Resend** — pošiljanje e-poštnih obvestil
 
 ## Podatkovna baza
 
-Baza vsebuje 7 tabel: `users, films, rooms, seats, screenings, reservations, reservation_seats`.
-
+Baza vsebuje 8 tabel: `users, films, rooms, seats, screenings, reservations, reservation_seats, email_log`.
 
 ## Funkcionalnosti
 

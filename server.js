@@ -29,6 +29,7 @@ const uploadRoutes = require('./src/routes/upload');
 const auth = require('./src/middleware/auth');
 const notificationRoutes = require('./src/routes/notifications');
 const paymentRoutes = require('./src/routes/payments');
+const userRoutes = require('./src/routes/users');
 
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -39,6 +40,7 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/upload', uploadRoutes);
 app.set('trust proxy', 1);
+app.use('/api/users', userRoutes);
 
 
 //Testiraj pot
