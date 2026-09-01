@@ -100,6 +100,20 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     try {
+        // Preveri, ali ima film aktivna predvajanja — brez tega bi CASCADE
+        // brez opozorila izbrisal tudi predvajanja in (morebiti plačane)
+        // rezervacije zanje. Skrbnik naj predvajanja najprej izbriše prek
+        // screenings.js, ki prizadete stranke o tem obvesti.
+        const [screenings] = await db.query(
+            'SELECT id FROM screenings WHERE film_id = ? AND active = 1 LIMIT 1',
+            [req.params.id]
+        );
+        if (screenings.length > 0) {
+            return res.status(409).json({
+                message: 'Filma ni mogoče izbrisati, dokler ima aktivna predvajanja.'
+            });
+        }
+
         const [result] = await db.query(
             'DELETE FROM films WHERE id = ?', [req.params.id]
         );
