@@ -203,12 +203,23 @@ const reservationCancelledEmail = (user, film, screening) => ({
     `
 });
 
-const screeningDeletedEmail = (user, film, screening) => ({
+const screeningDeletedEmail = (user, film, screening, refundInfo = {}) => {
+    const { refunded = false, total_price = null } = refundInfo;
+    const zneseBesedilo = total_price !== null
+        ? `znesek ${formatPrice(total_price)}`
+        : 'znesek vaše rezervacije';
+
+    const vracilnoSporocilo = refunded
+        ? `💳 Vrnili smo vam ${zneseBesedilo} na kartico, s katero ste plačali. `
+            + `Sredstva bodo predvidoma vidna v nekaj delovnih dneh.`
+        : `💳 Za vračilo zneska (${zneseBesedilo}) vas bomo kontaktirali ločeno.`;
+
+    return {
     from: process.env.EMAIL_FROM,
     to: user.email,
     subject: `⚠️ Predvajanje odpovedano — ${film}`,
     html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; 
+        <div style="font-family: Arial, sans-serif; max-width: 600px;
             margin: 0 auto; background: #0a0a0a; color: #f0f0f0;
             border-radius: 10px; overflow: hidden;">
 
@@ -223,7 +234,7 @@ const screeningDeletedEmail = (user, film, screening) => ({
                     Predvajanje odpovedano
                 </h2>
                 <p style="color: #aaa; margin-bottom: 24px;">
-                    Pozdravljeni, ${user.first_name}, žal vas moramo obvestiti, da je 
+                    Pozdravljeni, ${user.first_name}, žal vas moramo obvestiti, da je
                     kinematograf odpovedal spodnje predvajanje.
                     Vaša rezervacija je bila samodejno preklicana.
                 </p>
@@ -270,6 +281,14 @@ const screeningDeletedEmail = (user, film, screening) => ({
                     </table>
                 </div>
 
+                <div style="background: ${refunded ? 'rgba(0,201,177,0.08)' : 'rgba(229,9,20,0.08)'};
+                    border: 1px solid ${refunded ? 'rgba(0,201,177,0.3)' : 'rgba(229,9,20,0.3)'};
+                    border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                    <p style="margin: 0; color: #fff; font-size: 14px;">
+                        ${vracilnoSporocilo}
+                    </p>
+                </div>
+
                 <p style="color: #aaa; font-size: 14px;">
                     Opravičujemo se za nevšečnosti.
                     Upamo, da vas vidimo na kakšnem prihodnjem predvajanju!
@@ -283,7 +302,8 @@ const screeningDeletedEmail = (user, film, screening) => ({
             </div>
         </div>
     `
-});
+    };
+};
 
 const verifyEmailTemplate = (user, link) => ({
     from: process.env.EMAIL_FROM,
@@ -351,8 +371,8 @@ module.exports = {
     sendReservationCancelled: (user, film, screening) =>
         sendEmail(reservationCancelledEmail(user, film, screening)),
 
-    sendScreeningDeleted: (user, film, screening) =>
-        sendEmail(screeningDeletedEmail(user, film, screening)),
+    sendScreeningDeleted: (user, film, screening, refundInfo) =>
+        sendEmail(screeningDeletedEmail(user, film, screening, refundInfo)),
 
     sendVerifyEmail: (user, link) =>
         sendEmail(verifyEmailTemplate(user, link))

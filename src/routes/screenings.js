@@ -1,9 +1,36 @@
 const express = require('express');
 const router = express.Router();
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const auth = require('../middleware/auth');
 const { sendScreeningDeleted } = require('../email');
 const { sendPushNotification } = require('../push');
+
+// Poišče Stripovo namero plačila za dano rezervacijo prek metapodatkov
+// (payments.js ob ustvarjanju namere zapiše reservation_id v metadata) in ji
+// sproži polno vračilo. V bazi ne hranimo neposredne povezave rezervacija →
+// namera plačila, zato jo poiščemo tu — deluje tudi za rezervacije, potrjene
+// pred tem popravkom. Vrne true/false, da lahko obvestilo stranki pove
+// resnico o dejanskem izidu, ne splošne trditve.
+const refundReservation = async (reservationId) => {
+    try {
+        const found = await stripe.paymentIntents.search({
+            query: `metadata['reservation_id']:'${reservationId}'`,
+        });
+        const paymentIntent = found.data[0];
+        if (!paymentIntent) {
+            console.error(
+                `Vračilo: namere plačila za rezervacijo ${reservationId} ni bilo mogoče najti.`
+            );
+            return false;
+        }
+        await stripe.refunds.create({ payment_intent: paymentIntent.id });
+        return true;
+    } catch (err) {
+        console.error(`Vračilo za rezervacijo ${reservationId} ni uspelo:`, err.message);
+        return false;
+    }
+};
 
 // Pridobi vse predstave
 router.get('/', async (req, res) => {
@@ -198,6 +225,8 @@ router.delete('/:id', auth, async (req, res) => {
         // Pred brisanjem pridobi podrobnosti predstave in vse prizadete uporabnike
         const [affected] = await db.query(`
             SELECT
+                reservations.id AS reservation_id,
+                reservations.total_price,
                 users.first_name, users.email,
                 users.push_token,
                 films.title AS film_title,
@@ -227,32 +256,43 @@ router.delete('/:id', auth, async (req, res) => {
             [req.params.id]
         );
 
-        
-        // Pošlji e-pošto vsem prizadetim strankam
-        affected.forEach(d => {
+        // Za vsako plačano rezervacijo najprej poskusi vračilo denarja, šele
+        // nato pošlji e-pošto — obvestilo mora povedati dejanski izid
+        // vračila, ne splošne trditve. Vračila se izvedejo vzporedno; napaka
+        // pri enem vračilu ne sme preprečiti obveščanja ostalih (glej
+        // refundReservation zgoraj).
+        let refundCount = 0;
+
+        await Promise.all(affected.map(async (d) => {
+            const refunded = await refundReservation(d.reservation_id);
+            if (refunded) refundCount++;
+
+            // Pošlji e-pošto s pravim izidom vračila
             sendScreeningDeleted(
                 { first_name: d.first_name, email: d.email },
                 d.film_title,
-                { start_time: d.start_time, room_name: d.room_name }
+                { start_time: d.start_time, room_name: d.room_name },
+                { refunded, total_price: d.total_price }
             );
             // Pošlji potisno obvestilo, če imajo žeton
-    if (d.push_token) {
-        sendPushNotification(
-            d.push_token,
-            '⚠️ Predvajanje odpovedano',
-            `${d.film_title} dne ${new Date(d.start_time)
-                .toLocaleDateString('sl-SI', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric'
-                })} je bilo odpovedano.`,
-            { type: 'screening_cancelled' }
-        );
-    }
-        });
+            if (d.push_token) {
+                sendPushNotification(
+                    d.push_token,
+                    '⚠️ Predvajanje odpovedano',
+                    `${d.film_title} dne ${new Date(d.start_time)
+                        .toLocaleDateString('sl-SI', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric'
+                        })} je bilo odpovedano.`,
+                    { type: 'screening_cancelled' }
+                );
+            }
+        }));
 
         res.json({
-            message: `Predstava izbrisana. ${affected.length} uporabnik(ov) obveščenih.`
+            message: `Predstava izbrisana. ${affected.length} uporabnik(ov) obveščenih, `
+                + `${refundCount} vračil(a) izvedenih.`
         });
 
     } catch (err) {
