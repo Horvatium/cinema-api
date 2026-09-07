@@ -1,3 +1,5 @@
+// Šifrant filmov. Branje je javno (potrebujeta ga spletna in mobilna
+// aplikacija), pisanje pa je omejeno na skrbnike.
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
@@ -65,6 +67,9 @@ router.put('/:id', auth, async (req, res) => {
         trailer_url, cast_members } = req.body;
 
     try {
+        // COALESCE(?, stolpec) ohrani staro vrednost povsod, kjer odjemalec
+        // polja ni poslal (undefined pride v poizvedbo kot NULL). Tako lahko
+        // ista pot obdela delne popravke brez ločenih poizvedb.
         const [result] = await db.query(
             `UPDATE films SET 
                 title = COALESCE(?, title),

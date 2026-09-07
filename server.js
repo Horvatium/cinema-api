@@ -1,3 +1,5 @@
+// Vstopna točka zalednega sistema: sestavi aplikacijo Express, priklopi
+// vmesno opremo in usmerjevalnike ter zažene strežnik.
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -39,6 +41,9 @@ app.use('/api/screenings', screeningRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/upload', uploadRoutes);
+// Aplikacija teče za posrednikom (Railway), zato zaupamo glavi
+// X-Forwarded-Proto. Brez tega bi req.protocol vračal "http" in bi
+// potrditvene povezave ter naslovi plakatov nastali z napačno shemo.
 app.set('trust proxy', 1);
 app.use('/api/users', userRoutes);
 

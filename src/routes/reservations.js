@@ -4,6 +4,8 @@ const db = require('../db');
 const auth = require('../middleware/auth');
 const { sendReservationConfirmed, sendReservationCancelled } = require('../email');
 
+// Rezervacije prijavljenega uporabnika. Zapisi v stanju 'pending' so samo
+// desetminutna zadržanja med plačilom, zato jih na seznamu ne prikazujemo.
 // Pridobi rezervacije
 router.get('/my', auth, async (req, res) => {
     try {
@@ -18,6 +20,8 @@ router.get('/my', auth, async (req, res) => {
                 screenings.start_time,
                 screenings.end_time,
                 rooms.name AS room_name,
+                -- Več vrstic sedežev zložimo v en niz, npr. "A5,A6,B3",
+                -- da odjemalcu ni treba združevati zapisov
                 GROUP_CONCAT(
                     CONCAT(seats.row_label, seats.seat_number) 
                     ORDER BY seats.row_label, seats.seat_number
@@ -115,6 +119,8 @@ router.post('/', auth, async (req, res) => {
             return res.status(400).json({ message: 'Ne morem rezervirati sedežev za preteklo predstavo.' });
         }
 
+        // Sedež šteje za zaseden, če je potrjen ali če ga drži še veljavno
+        // zadržanje med plačilom (pending z rokom v prihodnosti)
         // Preveri ali so vsi zahtevani sedeži na voljo
         const [takenSeats] = await connection.query(`
             SELECT seats.id FROM seats
@@ -134,6 +140,8 @@ router.post('/', auth, async (req, res) => {
         // Izračunaj končno ceno
         const total_price = screening.price * seat_ids.length;
 
+        // Mobilna aplikacija rezervira brez plačila, zato zapis nastane
+        // takoj kot 'confirmed' in ne kot zadržanje
         // Ustvari rezervacijo
         const [result] = await connection.query(
             'INSERT INTO reservations (user_id, screening_id, status, total_price) VALUES (?, ?, ?, ?)',
@@ -203,6 +211,8 @@ if (emailData.length > 0) {
 //  PREKLIČI REZERVACIJO
 router.put('/:id/cancel', auth, async (req, res) => {
     try {
+        // Pogoj user_id v poizvedbi je varnostno preverjanje: tuje
+        // rezervacije ni mogoče preklicati niti ob ugibanju številke
         // Prepričaj se da rezervacija pripada temu uporabniku
         const [reservations] = await db.query(
             'SELECT * FROM reservations WHERE id = ? AND user_id = ?',

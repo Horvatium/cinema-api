@@ -10,6 +10,8 @@ router.get('/', auth, async (req, res) => {
     }
 
     try {
+        // Stolpce naštejemo izrecno, da zgoščena gesla in potrditveni žetoni
+        // nikoli ne zapustijo strežnika
         const [users] = await db.query(
             `SELECT id, first_name, last_name, email, phone, role, email_verified, created_at
              FROM users
@@ -41,6 +43,8 @@ router.delete('/:id', auth, async (req, res) => {
             return res.status(404).json({ message: 'Uporabnik ni najden.' });
         }
 
+        // Brez te varovalke bi sistem lahko ostal brez skrbnika in s tem brez
+        // dostopa do skrbniške plošče
         // Če gre za skrbniški račun, preveri, da ni zadnji
         if (target[0].role === 'admin') {
             const [admins] = await db.query(

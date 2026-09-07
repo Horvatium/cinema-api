@@ -3,6 +3,9 @@ const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
 
+// Napravo poveže z uporabnikom: mobilna aplikacija sem pošlje svoj Expov
+// žeton, strežnik pa ga uporabi, ko mora poslati potisno obvestilo
+// (npr. ob odpovedi predvajanja).
 // Shrani žeton za potisna obvestila uporabnika
 router.post('/token', auth, async (req, res) => {
     const { token } = req.body;

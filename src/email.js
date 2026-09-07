@@ -4,6 +4,7 @@ const { Resend } = require('resend');
 const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
+// Znesek v slovenskem zapisu: decimalna vejica in znak za evro
 const formatPrice = (value) =>
   `${Number(value).toFixed(2).replace(".", ",")} €`;
 
@@ -22,8 +23,13 @@ const zabeleziPosiljanje = async (mailOptions, status, napaka = null) => {
     }
 };
 
+// Vsaka predloga vrne objekt, pripravljen za sendEmail (from, to, subject,
+// html). Časi se povsod izpisujejo s timeZone: 'UTC' — v bazi je zapisan
+// stenski čas predvajanja, zato ga ne smemo pretvarjati v krajevni pas,
+// sicer bi se ura na vstopnici premaknila.
 // PREDLOGE E-POŠTNIH SPOROČIL
 
+// Potrditev rezervacije s povzetkom vstopnice (film, čas, dvorana, sedeži, cena)
 const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
     from: process.env.EMAIL_FROM,
     to: user.email,
@@ -123,6 +129,7 @@ const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
     `
 });
 
+// Obvestilo, ko rezervacijo prekliče stranka sama
 const reservationCancelledEmail = (user, film, screening) => ({
     from: process.env.EMAIL_FROM,
     to: user.email,
@@ -203,6 +210,9 @@ const reservationCancelledEmail = (user, film, screening) => ({
     `
 });
 
+// Obvestilo, ko predvajanje odpove kinematograf. Besedilo o vračilu se
+// prilagodi dejanskemu izidu (refundInfo.refunded), da sporočilo ne obljublja
+// vračila, ki se ni izvedlo.
 const screeningDeletedEmail = (user, film, screening, refundInfo = {}) => {
     const { refunded = false, total_price = null } = refundInfo;
     const zneseBesedilo = total_price !== null
@@ -305,6 +315,7 @@ const screeningDeletedEmail = (user, film, screening, refundInfo = {}) => {
     };
 };
 
+// Povezava za potrditev elektronskega naslova ob registraciji
 const verifyEmailTemplate = (user, link) => ({
     from: process.env.EMAIL_FROM,
     to: user.email,
@@ -330,6 +341,8 @@ const verifyEmailTemplate = (user, link) => ({
 
 // FUNKCIJA ZA POŠILJANJE
 const sendEmail = async (mailOptions) => {
+    // Brez nastavljenih spremenljivk okolja pošiljanje preskočimo, a ne
+    // vržemo napake — rezervacija mora ostati veljavna tudi brez e-pošte
     if (!resend) {
         console.error('RESEND_API_KEY ni nastavljen — e-pošta ni poslana.');
         return;
@@ -364,6 +377,7 @@ const sendEmail = async (mailOptions) => {
     }
 };
 
+// Navzven ponudimo samo štiri funkcije; predloge ostanejo skrite
 module.exports = {
     sendReservationConfirmed: (user, film, screening, seats, total) =>
         sendEmail(reservationConfirmedEmail(user, film, screening, seats, total)),
