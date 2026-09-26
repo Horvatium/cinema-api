@@ -3,6 +3,7 @@ const router = express.Router();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { stenskiCasZdaj } = require('../time');
 const { sendScreeningDeleted } = require('../email');
 const { sendPushNotification } = require('../push');
 
@@ -35,7 +36,8 @@ const refundReservation = async (reservationId) => {
 // Pridobi vse predstave
 router.get('/', async (req, res) => {
     try {
-        const [screenings] = await db.query(`
+        const [screenings] = await db.query(
+            `
             SELECT 
                 screenings.id,
                 screenings.film_id,
@@ -61,9 +63,11 @@ router.get('/', async (req, res) => {
             FROM screenings
             JOIN films ON screenings.film_id = films.id
             JOIN rooms ON screenings.room_id = rooms.id
-            WHERE screenings.active = 1 AND screenings.start_time > NOW()
+            WHERE screenings.active = 1 AND screenings.start_time > ?
             ORDER BY screenings.start_time ASC
-        `);
+        `,
+            [stenskiCasZdaj()]
+        );
         res.json(screenings);
     } catch (err) {
         console.error(err);

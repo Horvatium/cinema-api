@@ -3,6 +3,7 @@ const router = express.Router();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { stenskiCasZdaj } = require('../time');
 const { preveriSedeze } = require('../seats');
 const { sendReservationConfirmed } = require('../email');
 
@@ -40,7 +41,7 @@ router.post('/create-intent', auth, async (req, res) => {
         }
 
         // Plačilo za predstavo, ki se je že začela, ni smiselno
-        if (new Date(screenings[0].start_time) < new Date()) {
+        if (new Date(screenings[0].start_time) < stenskiCasZdaj()) {
             await connection.rollback();
             return res.status(400).json({ message: 'Predstava se je že začela.' });
         }

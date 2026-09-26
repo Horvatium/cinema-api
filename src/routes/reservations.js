@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { stenskiCasZdaj } = require('../time');
 const { preveriSedeze } = require('../seats');
 const { sendReservationConfirmed, sendReservationCancelled } = require('../email');
 
@@ -123,7 +124,7 @@ router.post('/', auth, async (req, res) => {
         const screening = screenings[0];
 
         // Preveri če je predstava v prihodnosti
-        if (new Date(screening.start_time) < new Date()) {
+        if (new Date(screening.start_time) < stenskiCasZdaj()) {
             await connection.rollback();
             return res
                 .status(400)
