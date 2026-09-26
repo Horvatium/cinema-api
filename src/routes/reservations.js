@@ -104,9 +104,14 @@ router.post('/', auth, async (req, res) => {
         // Začni transakcijo – vse poizvedbe morajo biti uspešne, sicer se nobena ne shrani
         await connection.beginTransaction();
 
-        // Preveri ali obstaja predstava in pridobi ceno
+        // Preveri ali obstaja predstava in pridobi ceno. FOR UPDATE zaklene
+        // vrstico predstave do konca transakcije, zato se rezervacije iste
+        // predstave izvajajo ena za drugo. Brez zaklepa bi dva sočasna
+        // zahtevka oba videla sedež prost in ga oba rezervirala. To mora biti
+        // prvo branje v transakciji: preverjanje zasedenosti spodaj tako
+        // dobi posnetek baze šele po zaklepu in vidi prej potrjene rezervacije.
         const [screenings] = await connection.query(
-            'SELECT * FROM screenings WHERE id = ? AND active = 1',
+            'SELECT * FROM screenings WHERE id = ? AND active = 1 FOR UPDATE',
             [screening_id]
         );
         if (screenings.length === 0) {

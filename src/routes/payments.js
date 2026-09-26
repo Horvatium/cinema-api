@@ -25,6 +25,19 @@ router.post('/create-intent', auth, async (req, res) => {
     try {
         await connection.beginTransaction();
 
+        // Pridobi ceno predvajanja in zakleni njegovo vrstico do konca
+        // transakcije, da se zadržanja sedežev iste predstave izvajajo ena za
+        // drugo (glej enak zaklep v reservations.js). Zaklep je prvi korak, da
+        // vse poti, ki zasedajo sedeže, zaklepajo v enakem vrstnem redu.
+        const [screenings] = await connection.query(
+            'SELECT * FROM screenings WHERE id = ? AND active = 1 FOR UPDATE',
+            [screening_id]
+        );
+        if (screenings.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ message: 'Predvajanje ne obstaja.' });
+        }
+
         // Odstrani potekla zadržanja, da se zapisi ne kopičijo
         await connection.query(`
             DELETE reservations, reservation_seats
@@ -34,16 +47,6 @@ router.post('/create-intent', auth, async (req, res) => {
             WHERE reservations.status = 'pending'
               AND reservations.expires_at < NOW()
         `);
-
-        // Pridobi ceno predvajanja
-        const [screenings] = await connection.query(
-            'SELECT * FROM screenings WHERE id = ? AND active = 1',
-            [screening_id]
-        );
-        if (screenings.length === 0) {
-            await connection.rollback();
-            return res.status(404).json({ message: 'Predvajanje ne obstaja.' });
-        }
 
         // Preveri, ali so sedeži še vedno na voljo
         const [takenSeats] = await connection.query(
@@ -143,6 +146,13 @@ router.post('/confirm', auth, async (req, res) => {
 
         try {
             await connection.beginTransaction();
+
+            // Isti zaklep predstave kot pri zadržanju in rezervaciji: če je
+            // zadržanje poteklo, drug zahtevek ne more hkrati zasesti istih
+            // sedežev, medtem ko jih tu preverjamo in potrjujemo
+            await connection.query('SELECT id FROM screenings WHERE id = ? FOR UPDATE', [
+                screening_id,
+            ]);
 
             const [rows] = await connection.query(
                 'SELECT * FROM reservations WHERE id = ? FOR UPDATE',
