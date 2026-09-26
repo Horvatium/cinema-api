@@ -21,7 +21,7 @@ router.post('/token', auth, async (req, res) => {
             [token, req.user.id]
         );
         res.json({ message: 'Žeton za potisna obvestila je shranjen.' });
-    } catch (_err) {
+    } catch {
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });

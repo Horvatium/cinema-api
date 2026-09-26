@@ -18,7 +18,7 @@ module.exports = (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.user = decoded;
         next();
-    } catch (err) {
+    } catch {
         // 403 in ne 401: žeton je bil predložen, a mu ne moremo zaupati
         res.status(403).json({ message: 'Neveljaven ali potekel žeton.'});
     }

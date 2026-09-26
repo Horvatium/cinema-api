@@ -1,0 +1,5 @@
+node_modules/
+uploads/
+coverage/
+package-lock.json
+schema.sql

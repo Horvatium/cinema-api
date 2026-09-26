@@ -28,7 +28,6 @@ const screeningRoutes = require('./src/routes/screenings');
 const roomRoutes = require('./src/routes/rooms');
 const reservationRoutes = require('./src/routes/reservations');
 const uploadRoutes = require('./src/routes/upload');
-const auth = require('./src/middleware/auth');
 const notificationRoutes = require('./src/routes/notifications');
 const paymentRoutes = require('./src/routes/payments');
 const userRoutes = require('./src/routes/users');

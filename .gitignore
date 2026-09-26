@@ -1,6 +1,6 @@
-node_modules .env uploads
+node_modules/
 .env
+uploads/
 .env.*
 known_hosts
 known_hosts.pub
-node_modules
