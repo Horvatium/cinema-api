@@ -16,6 +16,10 @@ const pool = mysql.createPool({
     // preverjanja verige potrdil ne izvajamo. Lokalna baza (Docker, testi)
     // SSL-ja nima, zato ga tam izklopimo z DB_SSL=false.
     ssl: process.env.DB_SSL === 'false' ? undefined : { rejectUnauthorized: false },
+    // Časi v bazi so stenski časi predstav in odjemalci jih izpisujejo kot UTC.
+    // Brez te nastavitve bi jih mysql2 bral v časovnem pasu strežnika, zato bi
+    // bili na računalniku v Sloveniji zamaknjeni za eno do dve uri.
+    timezone: 'Z',
 });
 
 // Različica z obljubami, da lahko povsod pišemo await db.query(...)

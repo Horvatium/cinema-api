@@ -52,9 +52,10 @@ describe('POST /api/payments/create-intent', () => {
     });
 
     it('refuses a screening that has already started', async () => {
+        // Yesterday, so the result does not depend on the database time zone
         const [result] = await db.query(
             `INSERT INTO screenings (film_id, room_id, start_time, end_time, price)
-             VALUES (1, 1, NOW() - INTERVAL 1 HOUR, NOW() + INTERVAL 1 HOUR, 7.00)`
+             VALUES (1, 1, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 22 HOUR, 7.00)`
         );
         const seats = await seatIds(1, 'A', [1]);
 

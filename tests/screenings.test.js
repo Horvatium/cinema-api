@@ -24,6 +24,20 @@ describe('GET /api/screenings', () => {
     });
 });
 
+describe('screening times', () => {
+    it('are returned exactly as stored, regardless of the server time zone', async () => {
+        const [[stored]] = await db.query(
+            "SELECT id, DATE_FORMAT(start_time, '%Y-%m-%dT%H:%i:%s') AS wall FROM screenings ORDER BY id LIMIT 1"
+        );
+
+        const res = await request(app).get('/api/screenings');
+        const screening = res.body.find((s) => s.id === stored.id);
+
+        // Times are wall-clock values and are sent as UTC ISO strings
+        expect(screening.start_time).toBe(`${stored.wall}.000Z`);
+    });
+});
+
 describe('GET /api/screenings/:id/seats', () => {
     it('marks seats held by the seeded reservation as taken', async () => {
         const screening = await screeningAt(0);

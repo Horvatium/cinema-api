@@ -16,6 +16,9 @@ Object.assign(process.env, {
     RESEND_API_KEY: '',
     EMAIL_FROM: '',
     DOTENV_CONFIG_QUIET: 'true',
+    // Run as on a developer machine in Slovenia, so tests catch code that
+    // silently depends on the server running in UTC (as Railway and CI do)
+    TZ: 'Europe/Ljubljana',
 });
 
 // The test database is dropped and recreated, so refuse anything that does
