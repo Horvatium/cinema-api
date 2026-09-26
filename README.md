@@ -22,7 +22,7 @@ in production.
   meantime, the payment is refunded automatically.
 - **No double booking under concurrency.** Found with a test that fires parallel requests
   for the same seat, then fixed with row locking. See [below](#the-double-booking-bug).
-- **Integration tests against real MySQL**, not mocks: 29 Jest + Supertest tests, run in CI
+- **Integration tests against real MySQL**, not mocks: 32 Jest + Supertest tests, run in CI
   against a MySQL 8.4 service container.
 - **One-command local setup** with Docker Compose, including a seeded database.
 - **CI/CD** with GitHub Actions: lint, tests, Docker build and a smoke test on every push;
@@ -160,13 +160,14 @@ name does not end in `_test`, so a local `.env` can never point the tests at pro
 To use another server, set `TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER`, `TEST_DB_PASSWORD`
 and `TEST_DB_NAME`.
 
-| Suite                  | Covers                                                      |
-| ---------------------- | ----------------------------------------------------------- |
-| `auth.test.js`         | login, wrong credentials, JWT middleware                    |
-| `screenings.test.js`   | programme listing, seat availability                        |
-| `reservations.test.js` | booking, conflicts, invalid seats, cancelling, admin access |
-| `payments.test.js`     | seat holds, invalid seats, past screenings, payment confirm |
-| `concurrency.test.js`  | parallel requests for the same seat                         |
+| Suite                        | Covers                                                      |
+| ---------------------------- | ----------------------------------------------------------- |
+| `auth.test.js`               | login, wrong credentials, JWT middleware                    |
+| `screenings.test.js`         | programme listing, seat availability                        |
+| `reservations.test.js`       | booking, conflicts, invalid seats, cancelling, admin access |
+| `payments.test.js`           | seat holds, invalid seats, past screenings, payment confirm |
+| `concurrency.test.js`        | parallel requests for the same seat                         |
+| `started-screenings.test.js` | screenings that already started (time zones)                |
 
 Other scripts: `npm run lint`, `npm run format`, `npm run format:check`.
 
