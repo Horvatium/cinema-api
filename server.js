@@ -1,58 +1,6 @@
-// Vstopna točka zalednega sistema: sestavi aplikacijo Express, priklopi
-// vmesno opremo in usmerjevalnike ter zažene strežnik.
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
-const fs = require('fs');
-const app = express();
+// Vstopna točka zalednega sistema: naloži aplikacijo in zažene strežnik.
+const app = require('./src/app');
 
-//Vmesna oprema
-app.use(cors());
-app.use(express.json());
-
-// Disk se priklopi prazen, zato mapo ustvarimo ob zagonu
-fs.mkdirSync('uploads/posters', { recursive: true });
-
-// Streži naložene slike s predpomnjenjem
-app.use(
-    '/uploads',
-    express.static('uploads', {
-        maxAge: '7d',
-        immutable: true,
-    })
-);
-
-//Poti
-const authRoutes = require('./src/routes/auth');
-const filmRoutes = require('./src/routes/films');
-const screeningRoutes = require('./src/routes/screenings');
-const roomRoutes = require('./src/routes/rooms');
-const reservationRoutes = require('./src/routes/reservations');
-const uploadRoutes = require('./src/routes/upload');
-const notificationRoutes = require('./src/routes/notifications');
-const paymentRoutes = require('./src/routes/payments');
-const userRoutes = require('./src/routes/users');
-
-app.use('/api/payments', paymentRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/films', filmRoutes);
-app.use('/api/screenings', screeningRoutes);
-app.use('/api/rooms', roomRoutes);
-app.use('/api/reservations', reservationRoutes);
-app.use('/api/upload', uploadRoutes);
-// Aplikacija teče za posrednikom (Railway), zato zaupamo glavi
-// X-Forwarded-Proto. Brez tega bi req.protocol vračal "http" in bi
-// potrditvene povezave ter naslovi plakatov nastali z napačno shemo.
-app.set('trust proxy', 1);
-app.use('/api/users', userRoutes);
-
-//Testiraj pot
-app.get('/', (req, res) => {
-    res.json({ message: 'Cinema API deluje!' });
-});
-
-//Zaženi strežnik cinemap
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Strežnik deluje na portu ${PORT}`);

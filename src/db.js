@@ -13,10 +13,9 @@ const pool = mysql.createPool({
     waitForConnections: true,
     connectionLimit: 10,
     // Gostovana baza zahteva SSL, a s samopodpisanim potrdilom, zato
-    // preverjanja verige potrdil ne izvajamo
-    ssl: {
-        rejectUnauthorized: false,
-    },
+    // preverjanja verige potrdil ne izvajamo. Lokalna baza (Docker, testi)
+    // SSL-ja nima, zato ga tam izklopimo z DB_SSL=false.
+    ssl: process.env.DB_SSL === 'false' ? undefined : { rejectUnauthorized: false },
 });
 
 // Različica z obljubami, da lahko povsod pišemo await db.query(...)
