@@ -3,6 +3,7 @@ const router = express.Router();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { preveriSedeze } = require('../seats');
 const { sendReservationConfirmed } = require('../email');
 
 // Koliko minut so sedeži zadržani med plačilom
@@ -36,6 +37,18 @@ router.post('/create-intent', auth, async (req, res) => {
         if (screenings.length === 0) {
             await connection.rollback();
             return res.status(404).json({ message: 'Predvajanje ne obstaja.' });
+        }
+
+        // Plačilo za predstavo, ki se je že začela, ni smiselno
+        if (new Date(screenings[0].start_time) < new Date()) {
+            await connection.rollback();
+            return res.status(400).json({ message: 'Predstava se je že začela.' });
+        }
+
+        const napakaSedezev = await preveriSedeze(connection, screenings[0].room_id, seat_ids);
+        if (napakaSedezev) {
+            await connection.rollback();
+            return res.status(400).json({ message: napakaSedezev });
         }
 
         // Odstrani potekla zadržanja, da se zapisi ne kopičijo

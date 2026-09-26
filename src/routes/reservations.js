@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { preveriSedeze } = require('../seats');
 const { sendReservationConfirmed, sendReservationCancelled } = require('../email');
 
 // Rezervacije prijavljenega uporabnika. Zapisi v stanju 'pending' so samo
@@ -127,6 +128,12 @@ router.post('/', auth, async (req, res) => {
             return res
                 .status(400)
                 .json({ message: 'Ne morem rezervirati sedežev za preteklo predstavo.' });
+        }
+
+        const napakaSedezev = await preveriSedeze(connection, screening.room_id, seat_ids);
+        if (napakaSedezev) {
+            await connection.rollback();
+            return res.status(400).json({ message: napakaSedezev });
         }
 
         // Sedež šteje za zaseden, če je potrjen ali če ga drži še veljavno

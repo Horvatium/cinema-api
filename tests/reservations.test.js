@@ -50,6 +50,25 @@ describe('POST /api/reservations', () => {
         const res = await reserve(999999, [1]);
         expect(res.status).toBe(404);
     });
+
+    it('refuses a seat from a different room', async () => {
+        const screening = await screeningAt(1);
+        const otherRoom = screening.room_id === 1 ? 2 : 1;
+        const seats = await seatIds(otherRoom, 'E', [1]);
+
+        const res = await reserve(screening.id, seats);
+
+        expect(res.status).toBe(400);
+    });
+
+    it('refuses the same seat listed twice', async () => {
+        const screening = await screeningAt(1);
+        const [seat] = await seatIds(screening.room_id, 'E', [2]);
+
+        const res = await reserve(screening.id, [seat, seat]);
+
+        expect(res.status).toBe(400);
+    });
 });
 
 describe('PUT /api/reservations/:id/cancel', () => {
