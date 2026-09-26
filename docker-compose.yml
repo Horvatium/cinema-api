@@ -9,62 +9,62 @@
 #   docker compose down -v
 
 services:
-    db:
-        image: mysql:8.4
-        environment:
-            MYSQL_ROOT_PASSWORD: root
-            MYSQL_DATABASE: cinema
-            TZ: UTC
-        ports:
-            - '3307:3306'
-        volumes:
-            - db-data:/var/lib/mysql
-            - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-            - ./seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
-        healthcheck:
-            # TCP ping, so it only succeeds once init scripts are done and the
-            # real server is listening
-            test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-proot']
-            interval: 5s
-            timeout: 5s
-            retries: 30
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cinema
+      TZ: UTC
+    ports:
+      - '3307:3306'
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      # TCP ping, so it only succeeds once init scripts are done and the
+      # real server is listening
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-proot']
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
-    api:
-        build: .
-        environment:
-            DB_HOST: db
-            DB_PORT: 3306
-            DB_USER: root
-            DB_PASSWORD: root
-            DB_NAME: cinema
-            DB_SSL: 'false'
-            JWT_SECRET: local-dev-secret
-            PORT: 5000
-            # Payments need Stripe test keys: export them before `docker compose up`
-            STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
-            STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
-            # Emails are skipped when RESEND_API_KEY is empty
-            RESEND_API_KEY: ${RESEND_API_KEY:-}
-            EMAIL_FROM: ${EMAIL_FROM:-}
-        ports:
-            - '5000:5000'
-        volumes:
-            - uploads:/app/uploads
-        depends_on:
-            db:
-                condition: service_healthy
+  api:
+    build: .
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: cinema
+      DB_SSL: 'false'
+      JWT_SECRET: local-dev-secret
+      PORT: 5000
+      # Payments need Stripe test keys: export them before `docker compose up`
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
+      # Emails are skipped when RESEND_API_KEY is empty
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+    ports:
+      - '5000:5000'
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
 
-    web:
-        profiles: [web]
-        build:
-            context: ../cinema-web
-            args:
-                REACT_APP_API_URL: http://localhost:5000/api
-        ports:
-            - '3000:80'
-        depends_on:
-            - api
+  web:
+    profiles: [web]
+    build:
+      context: ../cinema-web
+      args:
+        REACT_APP_API_URL: http://localhost:5000/api
+    ports:
+      - '3000:80'
+    depends_on:
+      - api
 
 volumes:
-    db-data:
-    uploads:
+  db-data:
+  uploads:
