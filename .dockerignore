@@ -1,0 +1,10 @@
+node_modules
+coverage
+uploads
+tests
+docs
+.git
+.env
+.env.*
+*.sql
+npm-debug.log*
