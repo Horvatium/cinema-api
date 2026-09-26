@@ -16,10 +16,7 @@ router.post('/token', auth, async (req, res) => {
 
     try {
         // Shrani žeton v tabelo uporabnikov
-        await db.query(
-            'UPDATE users SET push_token = ? WHERE id = ?',
-            [token, req.user.id]
-        );
+        await db.query('UPDATE users SET push_token = ? WHERE id = ?', [token, req.user.id]);
         res.json({ message: 'Žeton za potisna obvestila je shranjen.' });
     } catch {
         res.status(500).json({ message: 'Napaka na strežniku.' });

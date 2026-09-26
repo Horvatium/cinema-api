@@ -37,7 +37,8 @@ router.post('/create-intent', auth, async (req, res) => {
 
         // Pridobi ceno predvajanja
         const [screenings] = await connection.query(
-            'SELECT * FROM screenings WHERE id = ? AND active = 1', [screening_id]
+            'SELECT * FROM screenings WHERE id = ? AND active = 1',
+            [screening_id]
         );
         if (screenings.length === 0) {
             await connection.rollback();
@@ -45,19 +46,22 @@ router.post('/create-intent', auth, async (req, res) => {
         }
 
         // Preveri, ali so sedeži še vedno na voljo
-        const [takenSeats] = await connection.query(`
+        const [takenSeats] = await connection.query(
+            `
             SELECT seats.id FROM seats
             JOIN reservation_seats ON seats.id = reservation_seats.seat_id
             JOIN reservations ON reservation_seats.reservation_id = reservations.id
             WHERE reservations.screening_id = ?
             AND ${ZASEDENI}
             AND seats.id IN (?)
-        `, [screening_id, seat_ids]);
+        `,
+            [screening_id, seat_ids]
+        );
 
         if (takenSeats.length > 0) {
             await connection.rollback();
             return res.status(409).json({
-                message: 'Eden ali več izbranih sedežev je že zaseden.'
+                message: 'Eden ali več izbranih sedežev je že zaseden.',
             });
         }
 
@@ -72,15 +76,15 @@ router.post('/create-intent', auth, async (req, res) => {
         );
         const reservation_id = result.insertId;
 
-        const seatValues = seat_ids.map(seat_id => [reservation_id, seat_id]);
-        await connection.query(
-            'INSERT INTO reservation_seats (reservation_id, seat_id) VALUES ?',
-            [seatValues]
-        );
+        const seatValues = seat_ids.map((seat_id) => [reservation_id, seat_id]);
+        await connection.query('INSERT INTO reservation_seats (reservation_id, seat_id) VALUES ?', [
+            seatValues,
+        ]);
 
         // Uporabniku vrnemo točen čas izteka zadržanja
         const [[{ expires_at }]] = await connection.query(
-            'SELECT expires_at FROM reservations WHERE id = ?', [reservation_id]
+            'SELECT expires_at FROM reservations WHERE id = ?',
+            [reservation_id]
         );
 
         // Ustvari namero plačila pri Stripe
@@ -93,7 +97,7 @@ router.post('/create-intent', auth, async (req, res) => {
                 screening_id,
                 reservation_id,
                 seat_ids: seat_ids.join(','),
-            }
+            },
         });
 
         await connection.commit();
@@ -105,7 +109,6 @@ router.post('/create-intent', auth, async (req, res) => {
             expires_at,
             publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
         });
-
     } catch (err) {
         await connection.rollback();
         console.error(err);
@@ -121,17 +124,17 @@ router.post('/confirm', auth, async (req, res) => {
 
     try {
         // Preveri, ali je plačilo pri Stripe dejansko uspelo
-        const paymentIntent = await stripe.paymentIntents.retrieve(
-            payment_intent_id
-        );
+        const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
 
         if (paymentIntent.status !== 'succeeded') {
             return res.status(400).json({ message: 'Plačilo ni bilo uspešno.' });
         }
 
         // Preveri, ali se metapodatki ujemajo z zahtevo (varnostno preverjanje)
-        if (paymentIntent.metadata.user_id !== req.user.id.toString() ||
-            paymentIntent.metadata.screening_id !== screening_id.toString()) {
+        if (
+            paymentIntent.metadata.user_id !== req.user.id.toString() ||
+            paymentIntent.metadata.screening_id !== screening_id.toString()
+        ) {
             return res.status(403).json({ message: 'Preverjanje plačila ni uspelo.' });
         }
 
@@ -150,7 +153,7 @@ router.post('/confirm', auth, async (req, res) => {
                 await connection.rollback();
                 await stripe.refunds.create({ payment_intent: payment_intent_id });
                 return res.status(409).json({
-                    message: 'Rezervacije ni bilo mogoče potrditi. Sredstva so bila vrnjena.'
+                    message: 'Rezervacije ni bilo mogoče potrditi. Sredstva so bila vrnjena.',
                 });
             }
 
@@ -160,12 +163,13 @@ router.post('/confirm', auth, async (req, res) => {
                 return res.status(200).json({
                     message: 'Rezervacija je bila že potrjena.',
                     reservation_id,
-                    total_price: rows[0].total_price
+                    total_price: rows[0].total_price,
                 });
             }
 
             // Zadržanje je morda poteklo — preveri, ali so sedeže medtem zasedli drugi
-            const [takenSeats] = await connection.query(`
+            const [takenSeats] = await connection.query(
+                `
                 SELECT seats.id FROM seats
                 JOIN reservation_seats ON seats.id = reservation_seats.seat_id
                 JOIN reservations ON reservation_seats.reservation_id = reservations.id
@@ -173,16 +177,19 @@ router.post('/confirm', auth, async (req, res) => {
                 AND ${ZASEDENI}
                 AND reservations.id != ?
                 AND seats.id IN (?)
-            `, [screening_id, reservation_id, seat_ids]);
+            `,
+                [screening_id, reservation_id, seat_ids]
+            );
 
             if (takenSeats.length > 0) {
                 await connection.rollback();
                 // Vrni sredstva, ker sedeži medtem niso več na voljo
                 await stripe.refunds.create({
-                    payment_intent: payment_intent_id
+                    payment_intent: payment_intent_id,
                 });
                 return res.status(409).json({
-                    message: 'Sedeži so bili zasedeni medtem, ko ste plačevali. Sredstva so bila vrnjena.'
+                    message:
+                        'Sedeži so bili zasedeni medtem, ko ste plačevali. Sredstva so bila vrnjena.',
                 });
             }
 
@@ -198,7 +205,8 @@ router.post('/confirm', auth, async (req, res) => {
 
             // Podatki za potrditveno e-sporočilo
             try {
-                const [emailData] = await db.query(`
+                const [emailData] = await db.query(
+                    `
                     SELECT
                         users.first_name, users.email,
                         films.title AS film_title,
@@ -217,7 +225,9 @@ router.post('/confirm', auth, async (req, res) => {
                     LEFT JOIN seats ON reservation_seats.seat_id = seats.id
                     WHERE reservations.id = ?
                     GROUP BY reservations.id
-                `, [reservation_id]);
+                `,
+                    [reservation_id]
+                );
 
                 if (emailData.length > 0) {
                     const d = emailData[0];
@@ -236,16 +246,14 @@ router.post('/confirm', auth, async (req, res) => {
             res.status(201).json({
                 message: 'Plačilo je uspelo, rezervacija je potrjena!',
                 reservation_id,
-                total_price
+                total_price,
             });
-
         } catch (err) {
             await connection.rollback();
             throw err;
         } finally {
             connection.release();
         }
-
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
@@ -271,23 +279,18 @@ router.post('/cancel-intent', auth, async (req, res) => {
         );
 
         // Sprostimo lahko samo lastno, še nepotrjeno rezervacijo
-        if (rows.length === 0 ||
-            rows[0].user_id !== req.user.id ||
-            rows[0].status !== 'pending') {
+        if (rows.length === 0 || rows[0].user_id !== req.user.id || rows[0].status !== 'pending') {
             await connection.rollback();
             return res.status(200).json({ message: 'Ni česa sprostiti.' });
         }
 
-        await connection.query(
-            'DELETE FROM reservation_seats WHERE reservation_id = ?', [reservation_id]
-        );
-        await connection.query(
-            'DELETE FROM reservations WHERE id = ?', [reservation_id]
-        );
+        await connection.query('DELETE FROM reservation_seats WHERE reservation_id = ?', [
+            reservation_id,
+        ]);
+        await connection.query('DELETE FROM reservations WHERE id = ?', [reservation_id]);
 
         await connection.commit();
         res.json({ message: 'Sedeži so bili sproščeni.' });
-
     } catch (err) {
         await connection.rollback();
         console.error(err);

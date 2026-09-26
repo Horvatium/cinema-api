@@ -34,7 +34,7 @@ const sendPushNotification = async (pushToken, title, body, data = {}) => {
     return new Promise((resolve) => {
         const req = https.request(options, (res) => {
             let data = '';
-            res.on('data', chunk => data += chunk);
+            res.on('data', (chunk) => (data += chunk));
             res.on('end', () => {
                 console.log(`Potisno obvestilo poslano na ${pushToken}: ${title}`);
                 resolve(data);

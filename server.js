@@ -13,13 +13,14 @@ app.use(express.json());
 // Disk se priklopi prazen, zato mapo ustvarimo ob zagonu
 fs.mkdirSync('uploads/posters', { recursive: true });
 
-
 // Streži naložene slike s predpomnjenjem
-app.use('/uploads', express.static('uploads', {
-    maxAge: '7d',
-    immutable: true
-}));
-
+app.use(
+    '/uploads',
+    express.static('uploads', {
+        maxAge: '7d',
+        immutable: true,
+    })
+);
 
 //Poti
 const authRoutes = require('./src/routes/auth');
@@ -46,10 +47,9 @@ app.use('/api/upload', uploadRoutes);
 app.set('trust proxy', 1);
 app.use('/api/users', userRoutes);
 
-
 //Testiraj pot
 app.get('/', (req, res) => {
-    res.json({ message: 'Cinema API deluje!'});
+    res.json({ message: 'Cinema API deluje!' });
 });
 
 //Zaženi strežnik cinemap

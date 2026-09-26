@@ -9,7 +9,8 @@ const { sendReservationConfirmed, sendReservationCancelled } = require('../email
 // Pridobi rezervacije
 router.get('/my', auth, async (req, res) => {
     try {
-        const [reservations] = await db.query(`
+        const [reservations] = await db.query(
+            `
             SELECT 
                 reservations.id,
                 reservations.reserved_at,
@@ -35,8 +36,9 @@ router.get('/my', auth, async (req, res) => {
             WHERE reservations.user_id = ?
             AND reservations.status != 'pending'
             GROUP BY reservations.id
-            ORDER BY reservations.reserved_at DESC`, 
-            [req.user.id]);
+            ORDER BY reservations.reserved_at DESC`,
+            [req.user.id]
+        );
 
         res.json(reservations);
     } catch (err) {
@@ -104,7 +106,8 @@ router.post('/', auth, async (req, res) => {
 
         // Preveri ali obstaja predstava in pridobi ceno
         const [screenings] = await connection.query(
-            'SELECT * FROM screenings WHERE id = ? AND active = 1', [screening_id]
+            'SELECT * FROM screenings WHERE id = ? AND active = 1',
+            [screening_id]
         );
         if (screenings.length === 0) {
             await connection.rollback();
@@ -116,13 +119,16 @@ router.post('/', auth, async (req, res) => {
         // Preveri če je predstava v prihodnosti
         if (new Date(screening.start_time) < new Date()) {
             await connection.rollback();
-            return res.status(400).json({ message: 'Ne morem rezervirati sedežev za preteklo predstavo.' });
+            return res
+                .status(400)
+                .json({ message: 'Ne morem rezervirati sedežev za preteklo predstavo.' });
         }
 
         // Sedež šteje za zaseden, če je potrjen ali če ga drži še veljavno
         // zadržanje med plačilom (pending z rokom v prihodnosti)
         // Preveri ali so vsi zahtevani sedeži na voljo
-        const [takenSeats] = await connection.query(`
+        const [takenSeats] = await connection.query(
+            `
             SELECT seats.id FROM seats
             JOIN reservation_seats ON seats.id = reservation_seats.seat_id
             JOIN reservations ON reservation_seats.reservation_id = reservations.id
@@ -130,11 +136,15 @@ router.post('/', auth, async (req, res) => {
             AND (reservations.status = 'confirmed'
      OR (reservations.status = 'pending' AND reservations.expires_at > NOW()))
             AND seats.id IN (?)
-        `, [screening_id, seat_ids]);
+        `,
+            [screening_id, seat_ids]
+        );
 
         if (takenSeats.length > 0) {
             await connection.rollback();
-            return res.status(409).json({ message: 'Eden ali več izbranih sedežev je že zasedeno.' });
+            return res
+                .status(409)
+                .json({ message: 'Eden ali več izbranih sedežev je že zasedeno.' });
         }
 
         // Izračunaj končno ceno
@@ -151,17 +161,17 @@ router.post('/', auth, async (req, res) => {
         const reservation_id = result.insertId;
 
         // Vstavi vsak sedež v reservation_seats
-        const seatValues = seat_ids.map(seat_id => [reservation_id, seat_id]);
-        await connection.query(
-            'INSERT INTO reservation_seats (reservation_id, seat_id) VALUES ?',
-            [seatValues]
-        );
+        const seatValues = seat_ids.map((seat_id) => [reservation_id, seat_id]);
+        await connection.query('INSERT INTO reservation_seats (reservation_id, seat_id) VALUES ?', [
+            seatValues,
+        ]);
 
         // Končaj transakcijo – shrani vse v bazo podatkov
-       await connection.commit();
+        await connection.commit();
 
-// Pridobi podatke, potrebne za e-pošto
-const [emailData] = await db.query(`
+        // Pridobi podatke, potrebne za e-pošto
+        const [emailData] = await db.query(
+            `
     SELECT 
         users.first_name, users.email,
         films.title AS film_title,
@@ -180,25 +190,26 @@ const [emailData] = await db.query(`
     LEFT JOIN seats ON reservation_seats.seat_id = seats.id
     WHERE reservations.id = ?
     GROUP BY reservations.id
-`, [reservation_id]);
+`,
+            [reservation_id]
+        );
 
-if (emailData.length > 0) {
-    const d = emailData[0];
-    sendReservationConfirmed(
-        { first_name: d.first_name, email: d.email },
-        d.film_title,
-        { start_time: d.start_time, room_name: d.room_name },
-        d.seat_labels,
-        total_price
-    );
-}
+        if (emailData.length > 0) {
+            const d = emailData[0];
+            sendReservationConfirmed(
+                { first_name: d.first_name, email: d.email },
+                d.film_title,
+                { start_time: d.start_time, room_name: d.room_name },
+                d.seat_labels,
+                total_price
+            );
+        }
 
         res.status(201).json({
             message: 'Rezervacija potrjena!',
             reservation_id,
-            total_price
+            total_price,
         });
-
     } catch (err) {
         await connection.rollback();
         console.error(err);
@@ -227,13 +238,14 @@ router.put('/:id/cancel', auth, async (req, res) => {
             return res.status(400).json({ message: 'Rezervacija je že preklicana.' });
         }
 
-        await db.query(
-    'UPDATE reservations SET status = ? WHERE id = ?',
-    ['canceled', req.params.id]
-);
+        await db.query('UPDATE reservations SET status = ? WHERE id = ?', [
+            'canceled',
+            req.params.id,
+        ]);
 
-// Pridobi podrobnosti za e-poštno sporočilo o preklicu
-const [emailData] = await db.query(`
+        // Pridobi podrobnosti za e-poštno sporočilo o preklicu
+        const [emailData] = await db.query(
+            `
     SELECT
         users.first_name, users.email,
         films.title AS film_title,
@@ -245,17 +257,17 @@ const [emailData] = await db.query(`
     JOIN films ON screenings.film_id = films.id
     JOIN rooms ON screenings.room_id = rooms.id
     WHERE reservations.id = ?
-`, [req.params.id]);
+`,
+            [req.params.id]
+        );
 
-if (emailData.length > 0) {
-    const d = emailData[0];
-    sendReservationCancelled(
-        { first_name: d.first_name, email: d.email },
-        d.film_title,
-        { start_time: d.start_time, room_name: d.room_name }
-    );
-}
-
+        if (emailData.length > 0) {
+            const d = emailData[0];
+            sendReservationCancelled({ first_name: d.first_name, email: d.email }, d.film_title, {
+                start_time: d.start_time,
+                room_name: d.room_name,
+            });
+        }
 
         res.json({ message: 'Rezervacija uspešno preklicana.' });
     } catch (err) {

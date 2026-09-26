@@ -18,11 +18,11 @@ router.post('/register', async (req, res) => {
 
     try {
         // Preveri, ali je elektronski naslov že registriran
-        const [existing] = await db.query(
-            'SELECT id FROM users WHERE email = ?', [email]
-        );
+        const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
         if (existing.length > 0) {
-            return res.status(409).json({ message: 'Račun s tem elektronskim naslovom že obstaja.' });
+            return res
+                .status(409)
+                .json({ message: 'Račun s tem elektronskim naslovom že obstaja.' });
         }
 
         // Zgosti geslo
@@ -44,10 +44,10 @@ router.post('/register', async (req, res) => {
         sendVerifyEmail({ first_name, email }, link);
 
         res.status(201).json({
-            message: 'Registracija uspešna! Na vaš elektronski naslov smo poslali potrditveno povezavo.',
-            requiresVerification: true
+            message:
+                'Registracija uspešna! Na vaš elektronski naslov smo poslali potrditveno povezavo.',
+            requiresVerification: true,
         });
-
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Napaka na strežniku. Poskusite znova.' });
@@ -100,7 +100,8 @@ router.post('/resend-verification', async (req, res) => {
 
         // Enako sporočilo ne glede na izid, da naslova ni mogoče preveriti
         const splosnOdgovor = {
-            message: 'Če naslov obstaja in še ni potrjen, smo nanj poslali novo potrditveno povezavo.'
+            message:
+                'Če naslov obstaja in še ni potrjen, smo nanj poslali novo potrditveno povezavo.',
         };
 
         if (users.length === 0 || users[0].email_verified) {
@@ -108,10 +109,10 @@ router.post('/resend-verification', async (req, res) => {
         }
 
         const verifyToken = crypto.randomBytes(32).toString('hex');
-        await db.query(
-            'UPDATE users SET verify_token = ? WHERE id = ?',
-            [verifyToken, users[0].id]
-        );
+        await db.query('UPDATE users SET verify_token = ? WHERE id = ?', [
+            verifyToken,
+            users[0].id,
+        ]);
 
         const link = `${req.protocol}://${req.get('host')}/api/auth/verify/${verifyToken}`;
         sendVerifyEmail({ first_name: users[0].first_name, email }, link);
@@ -133,9 +134,7 @@ router.post('/login', async (req, res) => {
 
     try {
         // Poišči uporabnika po elektronskem naslovu
-        const [users] = await db.query(
-            'SELECT * FROM users WHERE email = ?', [email]
-        );
+        const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
         if (users.length === 0) {
             return res.status(401).json({ message: 'Napačen elektronski naslov ali geslo.' });
         }
@@ -149,19 +148,17 @@ router.post('/login', async (req, res) => {
         }
 
         // Prijava je mogoča šele po potrditvi elektronskega naslova
-                if (!user.email_verified) {
+        if (!user.email_verified) {
             return res.status(403).json({
                 message: 'Elektronski naslov še ni potrjen. Preverite svojo e-pošto.',
-                requiresVerification: true
+                requiresVerification: true,
             });
         }
 
         // Ustvari žeton
-        const token = jwt.sign(
-            { id: user.id, role: user.role },
-            process.env.JWT_SECRET,
-            { expiresIn: '8h' }
-        );
+        const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
+            expiresIn: '8h',
+        });
 
         res.json({
             message: 'Prijava uspešna!',
@@ -171,10 +168,9 @@ router.post('/login', async (req, res) => {
                 first_name: user.first_name,
                 last_name: user.last_name,
                 email: user.email,
-                role: user.role
-            }
+                role: user.role,
+            },
         });
-
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Napaka na strežniku. Poskusite znova.' });

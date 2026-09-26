@@ -51,7 +51,9 @@ router.delete('/:id', auth, async (req, res) => {
                 `SELECT COUNT(*) AS count FROM users WHERE role = 'admin'`
             );
             if (admins[0].count <= 1) {
-                return res.status(400).json({ message: 'Zadnjega skrbniškega računa ni mogoče izbrisati.' });
+                return res
+                    .status(400)
+                    .json({ message: 'Zadnjega skrbniškega računa ni mogoče izbrisati.' });
             }
         }
 

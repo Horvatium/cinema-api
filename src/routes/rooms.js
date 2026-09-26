@@ -63,15 +63,13 @@ router.post('/', auth, samoSkrbnik, async (req, res) => {
         }
 
         // Vsi sedeži z eno samo paketno poizvedbo namesto sto ločenih vstavkov
-        await connection.query(
-            'INSERT INTO seats (room_id, row_label, seat_number) VALUES ?',
-            [seatValues]
-        );
+        await connection.query('INSERT INTO seats (room_id, row_label, seat_number) VALUES ?', [
+            seatValues,
+        ]);
 
         // Šele commit dejansko shrani dvorano in sedeže v bazo
         await connection.commit();
         res.status(201).json({ id: room_id, name, capacity, seats_created: seatValues.length });
-
     } catch (err) {
         await connection.rollback();
         console.error(err);
@@ -108,7 +106,7 @@ router.delete('/:id', auth, samoSkrbnik, async (req, res) => {
         );
         if (screenings.length > 0) {
             return res.status(409).json({
-                message: 'Dvorane ni mogoče izbrisati, dokler ima aktivna predvajanja.'
+                message: 'Dvorane ni mogoče izbrisati, dokler ima aktivna predvajanja.',
             });
         }
         await db.query('DELETE FROM rooms WHERE id = ?', [req.params.id]);

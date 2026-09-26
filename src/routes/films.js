@@ -12,16 +12,14 @@ router.get('/', async (req, res) => {
         res.json(films);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: 'Napaka na strežniku.'});
+        res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
 
 // PRIDOBI EN FILM
 router.get('/:id', async (req, res) => {
     try {
-        const [films] = await db.query(
-            'SELECT * FROM films WHERE id = ?', [req.params.id]
-        );
+        const [films] = await db.query('SELECT * FROM films WHERE id = ?', [req.params.id]);
         if (films.length === 0) {
             return res.status(404).json({ message: 'Film ni najden.' });
         }
@@ -38,17 +36,46 @@ router.post('/', auth, async (req, res) => {
         return res.status(403).json({ message: 'Samo skrbniki.' });
     }
 
-    const { title, title_sl, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url, backdrop_url, imdb_url, trailer_url, cast_members } = req.body;
+    const {
+        title,
+        title_sl,
+        genre,
+        duration_minutes,
+        age_rating,
+        synopsis,
+        director,
+        release_year,
+        poster_url,
+        backdrop_url,
+        imdb_url,
+        trailer_url,
+        cast_members,
+    } = req.body;
 
     if (!title || !genre || !duration_minutes || !age_rating) {
-        return res.status(400).json({ message: 'Potrebni so: naslov, žanr, dolžina filma in starostna ocena.' });
+        return res
+            .status(400)
+            .json({ message: 'Potrebni so: naslov, žanr, dolžina filma in starostna ocena.' });
     }
 
     try {
         const [result] = await db.query(
             'INSERT INTO films (title, title_sl, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url, backdrop_url, imdb_url, trailer_url, cast_members) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [title, title_sl || null, genre, duration_minutes, age_rating, synopsis || null, director || null, release_year || null, poster_url || null,
-            backdrop_url || null, imdb_url || null, trailer_url || null, cast_members || null]
+            [
+                title,
+                title_sl || null,
+                genre,
+                duration_minutes,
+                age_rating,
+                synopsis || null,
+                director || null,
+                release_year || null,
+                poster_url || null,
+                backdrop_url || null,
+                imdb_url || null,
+                trailer_url || null,
+                cast_members || null,
+            ]
         );
         res.status(201).json({ message: 'Film dodan uspešno!', id: result.insertId });
     } catch (err) {
@@ -63,8 +90,21 @@ router.put('/:id', auth, async (req, res) => {
         return res.status(403).json({ message: 'Samo skrbniki.' });
     }
 
-    const { title, title_sl, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url, backdrop_url, imdb_url,
-        trailer_url, cast_members } = req.body;
+    const {
+        title,
+        title_sl,
+        genre,
+        duration_minutes,
+        age_rating,
+        synopsis,
+        director,
+        release_year,
+        poster_url,
+        backdrop_url,
+        imdb_url,
+        trailer_url,
+        cast_members,
+    } = req.body;
 
     try {
         // COALESCE(?, stolpec) ohrani staro vrednost povsod, kjer odjemalec
@@ -86,7 +126,22 @@ router.put('/:id', auth, async (req, res) => {
                 trailer_url = COALESCE(?, trailer_url),
                 cast_members = COALESCE(?, cast_members)
              WHERE id = ?`,
-            [title, title_sl, genre, duration_minutes, age_rating, synopsis, director, release_year, poster_url, backdrop_url, imdb_url, trailer_url, cast_members, req.params.id]
+            [
+                title,
+                title_sl,
+                genre,
+                duration_minutes,
+                age_rating,
+                synopsis,
+                director,
+                release_year,
+                poster_url,
+                backdrop_url,
+                imdb_url,
+                trailer_url,
+                cast_members,
+                req.params.id,
+            ]
         );
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Film ni najden.' });
@@ -115,13 +170,11 @@ router.delete('/:id', auth, async (req, res) => {
         );
         if (screenings.length > 0) {
             return res.status(409).json({
-                message: 'Filma ni mogoče izbrisati, dokler ima aktivna predvajanja.'
+                message: 'Filma ni mogoče izbrisati, dokler ima aktivna predvajanja.',
             });
         }
 
-        const [result] = await db.query(
-            'DELETE FROM films WHERE id = ?', [req.params.id]
-        );
+        const [result] = await db.query('DELETE FROM films WHERE id = ?', [req.params.id]);
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Film ni najden.' });
         }

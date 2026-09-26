@@ -1,13 +1,9 @@
 require('dotenv').config();
 const db = require('./db');
 const { Resend } = require('resend');
-const resend = process.env.RESEND_API_KEY
-    ? new Resend(process.env.RESEND_API_KEY)
-    : null;
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 // Znesek v slovenskem zapisu: decimalna vejica in znak za evro
-const formatPrice = (value) =>
-  `${Number(value).toFixed(2).replace(".", ",")} €`;
-
+const formatPrice = (value) => `${Number(value).toFixed(2).replace('.', ',')} €`;
 
 // Zabeleži izid pošiljanja v podatkovno bazo
 const zabeleziPosiljanje = async (mailOptions, status, napaka = null) => {
@@ -72,28 +68,24 @@ const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
                         <tr>
                             <td style="color: #aaa; padding: 6px 0;">Datum</td>
                             <td style="color: #fff;">
-                                ${new Date(screening.start_time)
-                                    .toLocaleDateString('sl-SI', {
-                                        weekday: 'long',
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric',
-                                        timeZone: 'UTC',
-                                    })
-                                }
+                                ${new Date(screening.start_time).toLocaleDateString('sl-SI', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    timeZone: 'UTC',
+                                })}
                             </td>
                         </tr>
                         <tr>
                             <td style="color: #aaa; padding: 6px 0;">Ura</td>
                             <td style="color: #fff;">
-                                ${new Date(screening.start_time)
-                                    .toLocaleTimeString('sl-SI', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        hour12: false,
-                                        timeZone: 'UTC',
-                                    })
-                                }
+                                ${new Date(screening.start_time).toLocaleTimeString('sl-SI', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: false,
+                                    timeZone: 'UTC',
+                                })}
                             </td>
                         </tr>
                         <tr>
@@ -126,7 +118,7 @@ const reservationConfirmedEmail = (user, film, screening, seats, total) => ({
                 </p>
             </div>
         </div>
-    `
+    `,
 });
 
 // Obvestilo, ko rezervacijo prekliče stranka sama
@@ -168,28 +160,24 @@ const reservationCancelledEmail = (user, film, screening) => ({
                         <tr>
                             <td style="color: #aaa; padding: 6px 0;">Datum</td>
                             <td style="color: #fff;">
-                                ${new Date(screening.start_time)
-                                    .toLocaleDateString('sl-SI', {
-                                        weekday: 'long',
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric',
-                                        timeZone: 'UTC',
-                                    })
-                                }
+                                ${new Date(screening.start_time).toLocaleDateString('sl-SI', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    timeZone: 'UTC',
+                                })}
                             </td>
                         </tr>
                         <tr>
                             <td style="color: #aaa; padding: 6px 0;">Ura</td>
                             <td style="color: #fff;">
-                                ${new Date(screening.start_time)
-                                    .toLocaleTimeString('sl-SI', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        hour12: false,
-                                        timeZone: 'UTC',
-                                    })
-                                }
+                                ${new Date(screening.start_time).toLocaleTimeString('sl-SI', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: false,
+                                    timeZone: 'UTC',
+                                })}
                             </td>
                         </tr>
                     </table>
@@ -207,7 +195,7 @@ const reservationCancelledEmail = (user, film, screening) => ({
                 </p>
             </div>
         </div>
-    `
+    `,
 });
 
 // Obvestilo, ko predvajanje odpove kinematograf. Besedilo o vračilu se
@@ -215,20 +203,19 @@ const reservationCancelledEmail = (user, film, screening) => ({
 // vračila, ki se ni izvedlo.
 const screeningDeletedEmail = (user, film, screening, refundInfo = {}) => {
     const { refunded = false, total_price = null } = refundInfo;
-    const zneseBesedilo = total_price !== null
-        ? `znesek ${formatPrice(total_price)}`
-        : 'znesek vaše rezervacije';
+    const zneseBesedilo =
+        total_price !== null ? `znesek ${formatPrice(total_price)}` : 'znesek vaše rezervacije';
 
     const vracilnoSporocilo = refunded
-        ? `💳 Vrnili smo vam ${zneseBesedilo} na kartico, s katero ste plačali. `
-            + `Sredstva bodo predvidoma vidna v nekaj delovnih dneh.`
+        ? `💳 Vrnili smo vam ${zneseBesedilo} na kartico, s katero ste plačali. ` +
+          `Sredstva bodo predvidoma vidna v nekaj delovnih dneh.`
         : `💳 Za vračilo zneska (${zneseBesedilo}) vas bomo kontaktirali ločeno.`;
 
     return {
-    from: process.env.EMAIL_FROM,
-    to: user.email,
-    subject: `⚠️ Predvajanje odpovedano — ${film}`,
-    html: `
+        from: process.env.EMAIL_FROM,
+        to: user.email,
+        subject: `⚠️ Predvajanje odpovedano — ${film}`,
+        html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px;
             margin: 0 auto; background: #0a0a0a; color: #f0f0f0;
             border-radius: 10px; overflow: hidden;">
@@ -264,28 +251,24 @@ const screeningDeletedEmail = (user, film, screening, refundInfo = {}) => {
                         <tr>
                             <td style="color: #aaa; padding: 6px 0;">Datum</td>
                             <td style="color: #fff;">
-                                ${new Date(screening.start_time)
-                                    .toLocaleDateString('sl-SI', {
-                                        weekday: 'long',
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric',
-                                        timeZone: 'UTC',
-                                    })
-                                }
+                                ${new Date(screening.start_time).toLocaleDateString('sl-SI', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    timeZone: 'UTC',
+                                })}
                             </td>
                         </tr>
                         <tr>
                             <td style="color: #aaa; padding: 6px 0;">Ura</td>
                             <td style="color: #fff;">
-                                ${new Date(screening.start_time)
-                                    .toLocaleTimeString('sl-SI', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        hour12: false,
-                                        timeZone: 'UTC',
-                                    })
-                                }
+                                ${new Date(screening.start_time).toLocaleTimeString('sl-SI', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: false,
+                                    timeZone: 'UTC',
+                                })}
                             </td>
                         </tr>
                     </table>
@@ -311,7 +294,7 @@ const screeningDeletedEmail = (user, film, screening, refundInfo = {}) => {
                 </p>
             </div>
         </div>
-    `
+    `,
     };
 };
 
@@ -336,7 +319,7 @@ const verifyEmailTemplate = (user, link) => ({
                 Če povezava ne deluje, jo prilepite v brskalnik:<br>${link}
             </p>
         </div>
-    `
+    `,
 });
 
 // FUNKCIJA ZA POŠILJANJE
@@ -388,8 +371,5 @@ module.exports = {
     sendScreeningDeleted: (user, film, screening, refundInfo) =>
         sendEmail(screeningDeletedEmail(user, film, screening, refundInfo)),
 
-    sendVerifyEmail: (user, link) =>
-        sendEmail(verifyEmailTemplate(user, link))
-
-
+    sendVerifyEmail: (user, link) => sendEmail(verifyEmailTemplate(user, link)),
 };

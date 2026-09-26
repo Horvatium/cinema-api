@@ -20,6 +20,6 @@ module.exports = (req, res, next) => {
         next();
     } catch {
         // 403 in ne 401: žeton je bil predložen, a mu ne moremo zaupati
-        res.status(403).json({ message: 'Neveljaven ali potekel žeton.'});
+        res.status(403).json({ message: 'Neveljaven ali potekel žeton.' });
     }
 };

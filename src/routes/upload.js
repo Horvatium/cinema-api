@@ -14,15 +14,15 @@ const storage = multer.diskStorage({
         // Ustvari edinstveno ime datoteke: časovni žig + izvirna pripona
         const uniqueName = Date.now() + path.extname(file.originalname).toLowerCase();
         cb(null, uniqueName);
-    }
+    },
 });
 
 // Dovoljene pripone in začetni bajti (podpis) posamezne slikovne vrste
 const DOVOLJENE = {
-    '.jpg':  Buffer.from([0xFF, 0xD8, 0xFF]),
-    '.jpeg': Buffer.from([0xFF, 0xD8, 0xFF]),
-    '.png':  Buffer.from([0x89, 0x50, 0x4E, 0x47]),
-    '.webp': Buffer.from('RIFF', 'ascii')
+    '.jpg': Buffer.from([0xff, 0xd8, 0xff]),
+    '.jpeg': Buffer.from([0xff, 0xd8, 0xff]),
+    '.png': Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+    '.webp': Buffer.from('RIFF', 'ascii'),
 };
 
 // Prebere prvih 12 bajtov datoteke in preveri, ali ustrezajo navedeni vrsti
@@ -33,8 +33,10 @@ const preveriPodpis = (pot, ext) => {
     fs.closeSync(f);
 
     if (ext === '.webp') {
-        return glava.slice(0, 4).toString('ascii') === 'RIFF' &&
-               glava.slice(8, 12).toString('ascii') === 'WEBP';
+        return (
+            glava.slice(0, 4).toString('ascii') === 'RIFF' &&
+            glava.slice(8, 12).toString('ascii') === 'WEBP'
+        );
     }
 
     const podpis = DOVOLJENE[ext];
@@ -55,7 +57,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
     storage,
     fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 } // največ 5 MB
+    limits: { fileSize: 5 * 1024 * 1024 }, // največ 5 MB
 });
 
 // Preverjanje vloge pred nalaganjem, da se datoteka sploh ne zapiše na disk
@@ -70,9 +72,10 @@ const samoSkrbnik = (req, res, next) => {
 const naloziPlakat = (req, res, next) => {
     upload.single('poster')(req, res, (err) => {
         if (err instanceof multer.MulterError) {
-            const sporocilo = err.code === 'LIMIT_FILE_SIZE'
-                ? 'Datoteka presega dovoljeno velikost 5 MB.'
-                : 'Napaka pri nalaganju datoteke.';
+            const sporocilo =
+                err.code === 'LIMIT_FILE_SIZE'
+                    ? 'Datoteka presega dovoljeno velikost 5 MB.'
+                    : 'Napaka pri nalaganju datoteke.';
             return res.status(400).json({ message: sporocilo });
         }
         if (err) {
@@ -100,7 +103,7 @@ router.post('/poster', auth, samoSkrbnik, naloziPlakat, (req, res) => {
 
     res.json({
         message: 'Slika je bila uspešno naložena!',
-        url: imageUrl
+        url: imageUrl,
     });
 });
 

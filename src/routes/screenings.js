@@ -74,16 +74,17 @@ router.get('/', async (req, res) => {
 // PRIDOBI ENO PREDSTAVO Z RAZPOLOŽLJIVIMI SEDEŽI
 router.get('/:id/seats', async (req, res) => {
     try {
-        const [screening] = await db.query(
-            'SELECT * FROM screenings WHERE id = ? AND active = 1', [req.params.id]
-        );
+        const [screening] = await db.query('SELECT * FROM screenings WHERE id = ? AND active = 1', [
+            req.params.id,
+        ]);
         if (screening.length === 0) {
             return res.status(404).json({ message: 'Predstava ni najdena.' });
         }
 
         // Pridobi vse sedeže za dvorano te predstave
         // in označi, kateri so že rezervirani
-        const [seats] = await db.query(`
+        const [seats] = await db.query(
+            `
     SELECT 
         seats.id,
         seats.row_label,
@@ -106,7 +107,9 @@ router.get('/:id/seats', async (req, res) => {
         SELECT room_id FROM screenings WHERE id = ?
     )
     ORDER BY seats.row_label, seats.seat_number
-`, [req.params.id, req.params.id]);
+`,
+            [req.params.id, req.params.id]
+        );
 
         res.json(seats);
     } catch (err) {
@@ -129,14 +132,17 @@ router.post('/', auth, async (req, res) => {
 
     try {
         // Preveri ali obstajajo neskladja v urniku za isto dvorano
-        const [conflicts] = await db.query(`
+        const [conflicts] = await db.query(
+            `
             SELECT id FROM screenings 
             WHERE room_id = ? AND active = 1
             AND id != COALESCE(?, 0)
             AND (
                 (start_time < ? AND end_time > ?)
             )
-        `, [room_id, null, end_time, start_time]);
+        `,
+            [room_id, null, end_time, start_time]
+        );
 
         if (conflicts.length > 0) {
             return res.status(409).json({ message: 'Ta dvorana je v tem času že rezervirana.' });
@@ -161,37 +167,42 @@ router.put('/:id', auth, async (req, res) => {
 
     const { film_id, room_id, start_time, end_time, price } = req.body;
 
-
     try {
         // Preveri ali predstava obstaja
-        const [existing] = await db.query(
-            'SELECT * FROM screenings WHERE id = ? AND active = 1', [req.params.id]
-        );
+        const [existing] = await db.query('SELECT * FROM screenings WHERE id = ? AND active = 1', [
+            req.params.id,
+        ]);
         if (existing.length === 0) {
             return res.status(404).json({ message: 'Predstava ni najdena.' });
         }
 
         // Preveri morebitne konflikte, razen trenutne predstave
         if (room_id && start_time && end_time) {
-            const [conflicts] = await db.query(`
+            const [conflicts] = await db.query(
+                `
                 SELECT id FROM screenings
                 WHERE room_id = ? AND active = 1
                 AND id != ?
                 AND (start_time < ? AND end_time > ?)
-            `, [room_id, req.params.id, end_time, start_time]);
+            `,
+                [room_id, req.params.id, end_time, start_time]
+            );
 
             if (conflicts.length > 0) {
                 return res.status(409).json({
-                    message: 'Ta dvorana je v tem času že rezervirana.'
+                    message: 'Ta dvorana je v tem času že rezervirana.',
                 });
             }
         }
 
         // Preveri, koliko rezervacij obstaja za to predstavo
-        const [reservations] = await db.query(`
+        const [reservations] = await db.query(
+            `
             SELECT COUNT(*) as count FROM reservations
             WHERE screening_id = ? AND status = 'confirmed'
-        `, [req.params.id]);
+        `,
+            [req.params.id]
+        );
 
         await db.query(
             `UPDATE screenings SET
@@ -206,9 +217,8 @@ router.put('/:id', auth, async (req, res) => {
 
         res.json({
             message: 'Predstava uspešno posodobljena!',
-            affectedReservations: reservations[0].count
+            affectedReservations: reservations[0].count,
         });
-
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
@@ -223,7 +233,8 @@ router.delete('/:id', auth, async (req, res) => {
 
     try {
         // Pred brisanjem pridobi podrobnosti predstave in vse prizadete uporabnike
-        const [affected] = await db.query(`
+        const [affected] = await db.query(
+            `
             SELECT
                 reservations.id AS reservation_id,
                 reservations.total_price,
@@ -239,7 +250,9 @@ router.delete('/:id', auth, async (req, res) => {
             JOIN rooms ON screenings.room_id = rooms.id
             WHERE reservations.screening_id = ?
             AND reservations.status = 'confirmed'
-        `, [req.params.id]);
+        `,
+            [req.params.id]
+        );
 
         const [result] = await db.query(
             'UPDATE screenings SET active = 0 WHERE id = ? AND active = 1',
@@ -263,38 +276,39 @@ router.delete('/:id', auth, async (req, res) => {
         // refundReservation zgoraj).
         let refundCount = 0;
 
-        await Promise.all(affected.map(async (d) => {
-            const refunded = await refundReservation(d.reservation_id);
-            if (refunded) refundCount++;
+        await Promise.all(
+            affected.map(async (d) => {
+                const refunded = await refundReservation(d.reservation_id);
+                if (refunded) refundCount++;
 
-            // Pošlji e-pošto s pravim izidom vračila
-            sendScreeningDeleted(
-                { first_name: d.first_name, email: d.email },
-                d.film_title,
-                { start_time: d.start_time, room_name: d.room_name },
-                { refunded, total_price: d.total_price }
-            );
-            // Pošlji potisno obvestilo, če imajo žeton
-            if (d.push_token) {
-                sendPushNotification(
-                    d.push_token,
-                    '⚠️ Predvajanje odpovedano',
-                    `${d.film_title} dne ${new Date(d.start_time)
-                        .toLocaleDateString('sl-SI', {
+                // Pošlji e-pošto s pravim izidom vračila
+                sendScreeningDeleted(
+                    { first_name: d.first_name, email: d.email },
+                    d.film_title,
+                    { start_time: d.start_time, room_name: d.room_name },
+                    { refunded, total_price: d.total_price }
+                );
+                // Pošlji potisno obvestilo, če imajo žeton
+                if (d.push_token) {
+                    sendPushNotification(
+                        d.push_token,
+                        '⚠️ Predvajanje odpovedano',
+                        `${d.film_title} dne ${new Date(d.start_time).toLocaleDateString('sl-SI', {
                             weekday: 'short',
                             month: 'short',
-                            day: 'numeric'
+                            day: 'numeric',
                         })} je bilo odpovedano.`,
-                    { type: 'screening_cancelled' }
-                );
-            }
-        }));
+                        { type: 'screening_cancelled' }
+                    );
+                }
+            })
+        );
 
         res.json({
-            message: `Predstava izbrisana. ${affected.length} uporabnik(ov) obveščenih, `
-                + `${refundCount} vračil(a) izvedenih.`
+            message:
+                `Predstava izbrisana. ${affected.length} uporabnik(ov) obveščenih, ` +
+                `${refundCount} vračil(a) izvedenih.`,
         });
-
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
