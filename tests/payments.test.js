@@ -1,7 +1,15 @@
 const request = require('supertest');
 const app = require('../src/app');
 const { resetData } = require('./db-utils');
-const { db, bearer, CUSTOMER_ID, screeningAt, seatIds } = require('./helpers');
+const {
+    db,
+    bearer,
+    ADMIN_ID,
+    CUSTOMER_ID,
+    screeningAt,
+    seatIds,
+    activeBookings,
+} = require('./helpers');
 
 beforeAll(resetData);
 afterAll(() => db.end());
@@ -53,5 +61,68 @@ describe('POST /api/payments/create-intent', () => {
         const res = await createIntent(result.insertId, seats);
 
         expect(res.status).toBe(400);
+    });
+});
+
+describe('POST /api/payments/confirm', () => {
+    const stripe = require('stripe')();
+
+    // Stripe reports the payment as successful for the given hold
+    const paid = (reservationId, screeningId, userId = CUSTOMER_ID) =>
+        stripe.paymentIntents.retrieve.mockResolvedValue({
+            id: 'pi_test',
+            status: 'succeeded',
+            amount: 700,
+            metadata: {
+                user_id: String(userId),
+                screening_id: String(screeningId),
+                reservation_id: String(reservationId),
+            },
+        });
+
+    const confirm = (screeningId, seats) =>
+        request(app)
+            .post('/api/payments/confirm')
+            .set(bearer(CUSTOMER_ID))
+            .send({ payment_intent_id: 'pi_test', screening_id: screeningId, seat_ids: seats });
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it('confirms a paid hold', async () => {
+        const screening = await screeningAt(6);
+        const seats = await seatIds(screening.room_id, 'B', [1]);
+        const hold = await createIntent(screening.id, seats);
+        paid(hold.body.reservation_id, screening.id);
+
+        const res = await confirm(screening.id, seats);
+
+        expect(res.status).toBe(201);
+        expect(stripe.refunds.create).not.toHaveBeenCalled();
+    });
+
+    it('checks the seats stored with the hold, not the seats sent by the client', async () => {
+        const screening = await screeningAt(7);
+        const [held, other] = await seatIds(screening.room_id, 'B', [2, 3]);
+
+        // Customer holds B2, but the hold expires before the payment completes...
+        const hold = await createIntent(screening.id, [held]);
+        await db.query(
+            'UPDATE reservations SET expires_at = NOW() - INTERVAL 1 MINUTE WHERE id = ?',
+            [hold.body.reservation_id]
+        );
+        // ...and someone else books B2 in the meantime
+        const taken = await request(app)
+            .post('/api/reservations')
+            .set(bearer(ADMIN_ID))
+            .send({ screening_id: screening.id, seat_ids: [held] });
+        expect(taken.status).toBe(201);
+
+        // The confirm request lists a different, free seat
+        paid(hold.body.reservation_id, screening.id);
+        const res = await confirm(screening.id, [other]);
+
+        expect(res.status).toBe(409);
+        expect(stripe.refunds.create).toHaveBeenCalledWith({ payment_intent: 'pi_test' });
+        expect(await activeBookings(screening.id, held)).toBe(1);
     });
 });

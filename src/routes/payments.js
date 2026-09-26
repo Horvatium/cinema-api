@@ -136,7 +136,10 @@ router.post('/create-intent', auth, async (req, res) => {
 
 // POTRDI PLAČILO IN POTRDI REZERVACIJO
 router.post('/confirm', auth, async (req, res) => {
-    const { payment_intent_id, screening_id, seat_ids } = req.body;
+    // Sedeži se preberejo iz zadržanja v bazi, ne iz zahtevka: odjemalec bi
+    // sicer lahko poslal druge (proste) sedeže in potrdil zadržanje sedežev,
+    // ki jih je medtem kupil nekdo drug
+    const { payment_intent_id, screening_id } = req.body;
 
     try {
         // Preveri, ali je plačilo pri Stripe dejansko uspelo
@@ -190,18 +193,19 @@ router.post('/confirm', auth, async (req, res) => {
                 });
             }
 
-            // Zadržanje je morda poteklo — preveri, ali so sedeže medtem zasedli drugi
+            // Zadržanje je morda poteklo — preveri, ali so sedeže tega zadržanja
+            // medtem zasedle druge rezervacije
             const [takenSeats] = await connection.query(
                 `
-                SELECT seats.id FROM seats
-                JOIN reservation_seats ON seats.id = reservation_seats.seat_id
-                JOIN reservations ON reservation_seats.reservation_id = reservations.id
-                WHERE reservations.screening_id = ?
+                SELECT own.seat_id FROM reservation_seats own
+                JOIN reservation_seats other
+                    ON other.seat_id = own.seat_id AND other.reservation_id != own.reservation_id
+                JOIN reservations ON reservations.id = other.reservation_id
+                WHERE own.reservation_id = ?
+                AND reservations.screening_id = ?
                 AND ${ZASEDENI}
-                AND reservations.id != ?
-                AND seats.id IN (?)
             `,
-                [screening_id, reservation_id, seat_ids]
+                [reservation_id, rows[0].screening_id]
             );
 
             if (takenSeats.length > 0) {
