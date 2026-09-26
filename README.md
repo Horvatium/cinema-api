@@ -1,103 +1,115 @@
-# KinoPlex API
+# KinoPlex – API
 
 [![CI](https://github.com/Horvatium/cinema-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Horvatium/cinema-api/actions/workflows/ci.yml)
 
-REST API for **KinoPlex**, a cinema ticket booking system: browsing the programme, picking
-seats on a seat map, paying online with Stripe and managing the cinema as an admin. It serves
-a React web app and a React Native mobile app. Built as my bachelor's thesis project and running
-in production.
+REST API za **KinoPlex**, sistem za rezervacijo kinovstopnic: pregled sporeda, izbira sedežev
+na zemljevidu dvorane, spletno plačilo s Stripom in upravljanje kinematografa za skrbnike.
+Uporabljata ga spletna aplikacija v Reactu in mobilna aplikacija v React Native. Projekt je
+nastal kot diplomska naloga in deluje v produkciji.
 
-**Live site:** [kinoplex.si](https://www.kinoplex.si) ·
-**Web app:** [cinema-web](https://github.com/Horvatium/cinema-web) ·
-**Mobile app:** [cinema-mobile](https://github.com/Horvatium/cinema-mobile) ·
-[Slovenska različica](README.sl.md)
+**Spletna stran:** [kinoplex.si](https://www.kinoplex.si) ·
+**Spletna aplikacija:** [cinema-web](https://github.com/Horvatium/cinema-web) ·
+**Mobilna aplikacija:** [cinema-mobile](https://github.com/Horvatium/cinema-mobile) ·
+[English version](README.en.md)
 
-![Seat selection on kinoplex.si](https://raw.githubusercontent.com/Horvatium/cinema-web/main/docs/screenshots/seats.png)
+![Izbira sedežev na kinoplex.si](https://raw.githubusercontent.com/Horvatium/cinema-web/main/docs/screenshots/seats.png)
 
-## Highlights
+## Poudarki
 
-- **Payments with seat holds.** Starting a payment holds the seats for 10 minutes as a
-  `pending` reservation, a Stripe PaymentIntent is created, and the reservation is confirmed
-  only after the server verifies the payment with Stripe. If the seats were lost in the
-  meantime, the payment is refunded automatically.
-- **No double booking under concurrency.** Found with a test that fires parallel requests
-  for the same seat, then fixed with row locking. See [below](#the-double-booking-bug).
-- **Integration tests against real MySQL**, not mocks: 32 Jest + Supertest tests, run in CI
-  against a MySQL 8.4 service container.
-- **One-command local setup** with Docker Compose, including a seeded database.
-- **CI/CD** with GitHub Actions: lint, tests, Docker build and a smoke test on every push;
-  Railway deploys only after CI passes.
+- **Plačila z zadržanjem sedežev.** Ob začetku plačila so sedeži 10 minut zadržani kot
+  rezervacija v stanju `pending`, ustvari se Stripe PaymentIntent, rezervacija pa se potrdi
+  šele, ko strežnik plačilo preveri pri Stripu. Če so sedeži medtem izgubljeni, se denar
+  samodejno vrne.
+- **Brez dvojnih rezervacij pri sočasnih zahtevkih.** Napako je razkril test, ki za isti
+  sedež pošlje več zahtevkov hkrati, popravljena pa je z zaklepanjem vrstic. Glej
+  [spodaj](#napaka-z-dvojno-rezervacijo).
+- **Integracijski testi proti pravi bazi MySQL**, ne proti nadomestkom: 32 testov z Jestom in
+  Supertestom, ki v CI tečejo proti MySQL 8.4.
+- **Lokalni zagon z enim ukazom** z Docker Compose, skupaj z bazo in demo podatki.
+- **CI/CD** z GitHub Actions: lint, testi, gradnja Docker slike in preizkus delovanja ob
+  vsakem pushu; Railway objavi šele, ko CI uspe.
 
-## Architecture
+## Arhitektura
 
 ```mermaid
 flowchart LR
-    web["Web app<br/>React · Vercel"] -- "REST / JSON" --> api
-    mobile["Mobile app<br/>React Native · Expo"] -- "REST / JSON" --> api
+    web["Spletna aplikacija<br/>React · Vercel"] -- "REST / JSON" --> api
+    mobile["Mobilna aplikacija<br/>React Native · Expo"] -- "REST / JSON" --> api
     api["API<br/>Node.js · Express 5 · Railway"] -- SQL --> db[("MySQL")]
-    api -- "PaymentIntents, refunds" --> stripe["Stripe"]
-    api -- "transactional email" --> resend["Resend"]
-    api -- "push notifications" --> expo["Expo Push"]
+    api -- "PaymentIntents, vračila" --> stripe["Stripe"]
+    api -- "e-pošta" --> resend["Resend"]
+    api -- "potisna obvestila" --> expo["Expo Push"]
 ```
 
-Authentication uses JWTs signed by the API; admin-only routes check the role stored in the
-token. Database access goes through a `mysql2` connection pool, and multi-step writes
-(reservations, payments, creating a room with its seats) run in transactions on a dedicated
-connection.
+Avtentikacija temelji na žetonih JWT, ki jih podpiše API; poti samo za skrbnike preverijo vlogo,
+zapisano v žetonu. Dostop do baze poteka prek bazena povezav `mysql2`, zapisi v več korakih
+(rezervacije, plačila, ustvarjanje dvorane s sedeži) pa tečejo v transakcijah na namenski
+povezavi.
 
-Diagrams from the thesis (in Slovenian): [ER model](docs/diagrami/EER.jpg),
-[use cases](docs/diagrami/use_case_diagram.jpg),
-[architecture](docs/diagrami/arhitektura_sistema_drawio.jpg),
-[production deployment](docs/diagrami/Arhitektura_produkcijske_namestitve_sistema.jpg).
+Diagrami iz diplomske naloge: [ER model](docs/diagrami/EER.jpg),
+[primeri uporabe](docs/diagrami/use_case_diagram.jpg),
+[arhitektura](docs/diagrami/arhitektura_sistema_drawio.jpg),
+[produkcijska namestitev](docs/diagrami/Arhitektura_produkcijske_namestitve_sistema.jpg).
 
-## The double-booking bug
+## Napaka z dvojno rezervacijo
 
-Booking a seat used to be a check-then-insert inside a transaction:
+Rezervacija sedeža je bila prej v transakciji izvedena kot »preveri, nato vstavi«:
 
 ```sql
-SELECT ... FROM reservation_seats JOIN reservations ...   -- is the seat free?
-INSERT INTO reservations ...                              -- yes, book it
+SELECT ... FROM reservation_seats JOIN reservations ...   -- ali je sedež prost?
+INSERT INTO reservations ...                              -- je, rezerviraj ga
 ```
 
-A transaction alone does not prevent a race here. Two requests arriving at the same moment
-both run the `SELECT`, both see the seat as free, and both insert a reservation. The
-concurrency test fires 8 parallel requests for one seat, and **all 8 succeeded**
-([test commit](https://github.com/Horvatium/cinema-api/commit/5fa931c)).
+Transakcija sama tu ne prepreči tekme. Dva zahtevka, ki prideta hkrati, oba izvedeta `SELECT`,
+oba vidita sedež kot prost in oba vstavita rezervacijo. Test sočasnosti za en sedež pošlje 8
+zahtevkov hkrati in **uspelo je vseh 8**
+([commit s testom](https://github.com/Horvatium/cinema-api/commit/5fa931c)).
 
-**Fix** ([commit](https://github.com/Horvatium/cinema-api/commit/058713e)): every path that
-takes seats (`POST /reservations`, `POST /payments/create-intent`, `POST /payments/confirm`)
-now starts its transaction with `SELECT ... FROM screenings WHERE id = ? FOR UPDATE`.
-Bookings for the same screening run one after another, while different screenings do not
-block each other. Taking the same lock first everywhere keeps the lock order consistent,
-which avoids deadlocks.
+**Popravek** ([commit](https://github.com/Horvatium/cinema-api/commit/058713e)): vse poti, ki
+zasedajo sedeže (`POST /reservations`, `POST /payments/create-intent`,
+`POST /payments/confirm`), zdaj transakcijo začnejo s
+`SELECT ... FROM screenings WHERE id = ? FOR UPDATE`. Rezervacije iste predstave se tako
+izvedejo ena za drugo, različne predstave pa se med sabo ne čakajo. Ker vse poti najprej
+vzamejo isti zaklep, je vrstni red zaklepanja povsod enak, kar prepreči smrtne objeme.
 
-**Why not a `UNIQUE (screening_id, seat_id)` constraint?** Cancelled and expired reservations
-keep their seat rows, so a unique key would also block re-booking a seat after it was freed.
-Making it work would require deleting seat rows on every cancel and expiry, and changing how
-reservation history is stored. The lock fixes the race without that schema change.
+**Zakaj ne omejitev `UNIQUE (screening_id, seat_id)`?** Preklicane in potekle rezervacije
+ohranijo zapise sedežev, zato bi enolični ključ preprečil tudi ponovno rezervacijo že
+sproščenega sedeža. Za delovanje bi morali ob vsakem preklicu in izteku brisati zapise sedežev
+in spremeniti hranjenje zgodovine rezervacij. Zaklep odpravi tekmo brez te spremembe sheme.
 
-The same round of testing found that the API accepted seats from a different room and the same
-seat listed twice, which could charge a customer twice
-([fix](https://github.com/Horvatium/cinema-api/commit/fea29c8)).
+### Druge napake, ki so jih odkrili testi
 
-## Tech stack
+- **Neveljavni sedeži.** API je sprejel sedeže iz druge dvorane in isti sedež, naveden
+  dvakrat, zaradi česar bi stranka lahko plačala dvakrat
+  ([popravek](https://github.com/Horvatium/cinema-api/commit/fea29c8)).
+- **Dvojna prodaja ob potrditvi plačila.** `POST /payments/confirm` je ponovno preveril
+  sedeže, ki jih je poslal odjemalec, namesto sedežev iz zadržanja. Po poteklem zadržanju je
+  plačana potrditev lahko zasedla sedež, ki ga je že kupil nekdo drug
+  ([popravek](https://github.com/Horvatium/cinema-api/commit/5c4090c)).
+- **Vstopnice za predstave, ki so se že začele.** Časi predstav so stenski čas kina, primerjani
+  pa so bili z uro strežnika, ki na Railwayu teče v UTC. Predstava je bila zato naprodaj še do
+  dve uri po začetku. Začetek se zdaj primerja s trenutnim časom v pasu `Europe/Ljubljana`,
+  testi pa tečejo v tem pasu
+  ([popravek](https://github.com/Horvatium/cinema-api/commit/2f0ec8d)).
 
-| Area                  | Technology                                        |
-| --------------------- | ------------------------------------------------- |
-| Runtime and framework | Node.js 22, Express 5                             |
-| Database              | MySQL 8 (`mysql2`, connection pool, transactions) |
-| Auth                  | JWT (`jsonwebtoken`), bcrypt password hashing     |
-| Payments              | Stripe PaymentIntents and refunds                 |
-| Email and push        | Resend, Expo push notifications                   |
-| Testing               | Jest, Supertest, real MySQL database              |
-| Tooling               | ESLint (flat config), Prettier                    |
-| Infrastructure        | Docker, Docker Compose, GitHub Actions, Railway   |
+## Tehnologije
 
-## Getting started
+| Področje                  | Tehnologija                                      |
+| ------------------------- | ------------------------------------------------ |
+| Izvajalno okolje, ogrodje | Node.js 22, Express 5                            |
+| Podatkovna baza           | MySQL 8 (`mysql2`, bazen povezav, transakcije)   |
+| Avtentikacija             | JWT (`jsonwebtoken`), zgoščevanje gesel z bcrypt |
+| Plačila                   | Stripe PaymentIntents in vračila                 |
+| E-pošta in obvestila      | Resend, potisna obvestila Expo                   |
+| Testiranje                | Jest, Supertest, prava baza MySQL                |
+| Orodja                    | ESLint (flat config), Prettier                   |
+| Infrastruktura            | Docker, Docker Compose, GitHub Actions, Railway  |
 
-### With Docker (recommended)
+## Zagon
 
-Requires [Docker](https://docs.docker.com/get-docker/).
+### Z Dockerjem (priporočeno)
+
+Potrebuješ [Docker](https://docs.docker.com/get-docker/).
 
 ```bash
 git clone https://github.com/Horvatium/cinema-api.git
@@ -105,130 +117,130 @@ cd cinema-api
 docker compose up --build
 ```
 
-The API runs on <http://localhost:5000>, and MySQL is created from [`schema.sql`](schema.sql)
-and filled with demo data from [`seed.sql`](seed.sql) on the first start.
+API teče na <http://localhost:5000>. Ob prvem zagonu se baza MySQL ustvari iz
+[`schema.sql`](schema.sql) in napolni z demo podatki iz [`seed.sql`](seed.sql).
 
-To also run the web app, clone [cinema-web](https://github.com/Horvatium/cinema-web) next to
-this repository and start the `web` profile. The site is then on <http://localhost:3000>.
+Če želiš zagnati še spletno aplikacijo, kloniraj [cinema-web](https://github.com/Horvatium/cinema-web)
+v mapo poleg tega repozitorija in zaženi profil `web`. Stran je nato na <http://localhost:3000>.
 
 ```bash
 docker compose --profile web up --build
 ```
 
-Screenings in the seed are generated for the week after the first start. Run
-`docker compose down -v` to reset the database with fresh dates.
+Predstave v seedu so ustvarjene za teden po prvem zagonu. Z `docker compose down -v` bazo
+ponastaviš in dobiš nove datume.
 
-Payments need Stripe **test** keys. Export `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY`
-before `docker compose up`. Everything else works without them.
+Plačila potrebujejo **testne** ključe Stripe. Pred `docker compose up` nastavi
+`STRIPE_SECRET_KEY` in `STRIPE_PUBLISHABLE_KEY`. Vse ostalo deluje brez njih.
 
-### Demo accounts
+### Demo računi
 
-These accounts exist only in the local seed database, not in production.
+Računa obstajata samo v lokalni bazi s seed podatki, ne v produkciji.
 
-| Role     | Email                 | Password    |
-| -------- | --------------------- | ----------- |
-| Admin    | `admin@kinoplex.test` | `Admin123!` |
-| Customer | `demo@kinoplex.test`  | `Demo123!`  |
+| Vloga   | E-pošta               | Geslo       |
+| ------- | --------------------- | ----------- |
+| Skrbnik | `admin@kinoplex.test` | `Admin123!` |
+| Stranka | `demo@kinoplex.test`  | `Demo123!`  |
 
-### Without Docker
+### Brez Dockerja
 
-Requires Node.js 22 and MySQL 8.
+Potrebuješ Node.js 22 in MySQL 8.
 
 ```bash
 npm install
-cp .env.example .env        # then fill in your database and keys
+cp .env.example .env        # nato vpiši podatke za bazo in ključe
 mysql -u root -p -e "CREATE DATABASE cinema"
 mysql -u root -p cinema < schema.sql
 mysql -u root -p cinema < seed.sql
 npm run dev
 ```
 
-All environment variables are documented in [`.env.example`](.env.example).
+Vse spremenljivke okolja so opisane v [`.env.example`](.env.example).
 
-## Tests
+## Testi
 
-The tests run against a real MySQL database called `cinema_test`, which is recreated on every
-run. Stripe, email and push notifications are stubbed.
+Testi tečejo proti pravi bazi MySQL z imenom `cinema_test`, ki se ob vsakem zagonu ustvari na
+novo. Stripe, e-pošta in potisna obvestila so nadomeščeni.
 
 ```bash
-docker compose up -d db    # MySQL on localhost:3307
+docker compose up -d db    # MySQL na localhost:3307
 npm test
 ```
 
-The test setup overrides all database settings and refuses to run against a database whose
-name does not end in `_test`, so a local `.env` can never point the tests at production.
-To use another server, set `TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER`, `TEST_DB_PASSWORD`
-and `TEST_DB_NAME`.
+Testno okolje prepiše vse nastavitve baze in se ne zažene, če ime baze ne konča na `_test`,
+zato lokalni `.env` testov nikoli ne more usmeriti na produkcijo. Za drug strežnik nastavi
+`TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER`, `TEST_DB_PASSWORD` in `TEST_DB_NAME`.
 
-| Suite                        | Covers                                                      |
-| ---------------------------- | ----------------------------------------------------------- |
-| `auth.test.js`               | login, wrong credentials, JWT middleware                    |
-| `screenings.test.js`         | programme listing, seat availability                        |
-| `reservations.test.js`       | booking, conflicts, invalid seats, cancelling, admin access |
-| `payments.test.js`           | seat holds, invalid seats, past screenings, payment confirm |
-| `concurrency.test.js`        | parallel requests for the same seat                         |
-| `started-screenings.test.js` | screenings that already started (time zones)                |
+| Skupina                      | Pokriva                                                                     |
+| ---------------------------- | --------------------------------------------------------------------------- |
+| `auth.test.js`               | prijava, napačni podatki, vmesna oprema za JWT                              |
+| `screenings.test.js`         | spored, razpoložljivost sedežev, časi predstav                              |
+| `reservations.test.js`       | rezervacija, konflikti, neveljavni sedeži, preklic, pravice skrbnika        |
+| `payments.test.js`           | zadržanje sedežev, neveljavni sedeži, pretekle predstave, potrditev plačila |
+| `concurrency.test.js`        | sočasni zahtevki za isti sedež                                              |
+| `started-screenings.test.js` | predstave, ki so se že začele (časovni pasovi)                              |
 
-Other scripts: `npm run lint`, `npm run format`, `npm run format:check`.
+Druge skripte: `npm run lint`, `npm run format`, `npm run format:check`.
 
-## API overview
+## Pregled API-ja
 
-All routes are prefixed with `/api`. 🔒 needs a JWT (`Authorization: Bearer <token>`),
-👑 needs the admin role.
+Vse poti se začnejo z `/api`. 🔒 zahteva JWT (`Authorization: Bearer <žeton>`),
+👑 zahteva vlogo skrbnika.
 
-| Method            | Route                            | Description                                                    |
-| ----------------- | -------------------------------- | -------------------------------------------------------------- |
-| POST              | `/auth/register`                 | Register; sends a verification email                           |
-| GET               | `/auth/verify/:token`            | Verify an email address                                        |
-| POST              | `/auth/resend-verification`      | Resend the verification email                                  |
-| POST              | `/auth/login`                    | Log in, returns a JWT                                          |
-| GET               | `/films`, `/films/:id`           | List films, film details                                       |
-| POST, PUT, DELETE | `/films`, `/films/:id`           | Manage films 👑                                                |
-| GET               | `/screenings`                    | Upcoming screenings with film and room details                 |
-| GET               | `/screenings/:id/seats`          | Seat map with availability                                     |
-| POST, PUT, DELETE | `/screenings`, `/screenings/:id` | Manage screenings (overlap check per room) 👑                  |
-| GET               | `/rooms`                         | List rooms                                                     |
-| POST, PUT, DELETE | `/rooms`, `/rooms/:id`           | Manage rooms; seats are generated automatically 👑             |
-| POST              | `/payments/create-intent`        | Hold seats for 10 minutes and create a Stripe PaymentIntent 🔒 |
-| POST              | `/payments/confirm`              | Verify the payment with Stripe and confirm the reservation 🔒  |
-| POST              | `/payments/cancel-intent`        | Release held seats 🔒                                          |
-| POST              | `/reservations`                  | Book without payment (used by the mobile app) 🔒               |
-| GET               | `/reservations/my`               | The user's reservations 🔒                                     |
-| PUT               | `/reservations/:id/cancel`       | Cancel a reservation 🔒                                        |
-| GET               | `/reservations`                  | All reservations 👑                                            |
-| POST              | `/upload/poster`                 | Upload a film poster 👑                                        |
-| GET, DELETE       | `/users`, `/users/:id`           | Manage users 👑                                                |
-| POST              | `/notifications/token`           | Save an Expo push token 🔒                                     |
+| Metoda            | Pot                              | Opis                                                         |
+| ----------------- | -------------------------------- | ------------------------------------------------------------ |
+| POST              | `/auth/register`                 | Registracija; pošlje potrditveno e-sporočilo                 |
+| GET               | `/auth/verify/:token`            | Potrditev e-poštnega naslova                                 |
+| POST              | `/auth/resend-verification`      | Ponovno pošiljanje potrditvenega sporočila                   |
+| POST              | `/auth/login`                    | Prijava, vrne JWT                                            |
+| GET               | `/films`, `/films/:id`           | Seznam filmov, podrobnosti filma                             |
+| POST, PUT, DELETE | `/films`, `/films/:id`           | Upravljanje filmov 👑                                        |
+| GET               | `/screenings`                    | Prihodnje predstave s podatki o filmu in dvorani             |
+| GET               | `/screenings/:id/seats`          | Zemljevid sedežev z zasedenostjo                             |
+| POST, PUT, DELETE | `/screenings`, `/screenings/:id` | Upravljanje predstav (preverjanje prekrivanja v dvorani) 👑  |
+| GET               | `/rooms`                         | Seznam dvoran                                                |
+| POST, PUT, DELETE | `/rooms`, `/rooms/:id`           | Upravljanje dvoran; sedeži se ustvarijo samodejno 👑         |
+| POST              | `/payments/create-intent`        | Zadrži sedeže za 10 minut in ustvari Stripe PaymentIntent 🔒 |
+| POST              | `/payments/confirm`              | Preveri plačilo pri Stripu in potrdi rezervacijo 🔒          |
+| POST              | `/payments/cancel-intent`        | Sprosti zadržane sedeže 🔒                                   |
+| POST              | `/reservations`                  | Rezervacija brez plačila (uporablja mobilna aplikacija) 🔒   |
+| GET               | `/reservations/my`               | Rezervacije uporabnika 🔒                                    |
+| PUT               | `/reservations/:id/cancel`       | Preklic rezervacije 🔒                                       |
+| GET               | `/reservations`                  | Vse rezervacije 👑                                           |
+| POST              | `/upload/poster`                 | Nalaganje plakata 👑                                         |
+| GET, DELETE       | `/users`, `/users/:id`           | Upravljanje uporabnikov 👑                                   |
+| POST              | `/notifications/token`           | Shrani žeton Expo za potisna obvestila 🔒                    |
 
-## Project structure
+## Struktura projekta
 
 ```
-├── server.js              starts the HTTP server
+├── server.js              zažene strežnik HTTP
 ├── src/
-│   ├── app.js             Express app: middleware and routes
-│   ├── db.js              MySQL connection pool
-│   ├── seats.js           seat validation shared by booking routes
-│   ├── email.js           email templates and sending (Resend)
-│   ├── push.js            Expo push notifications
-│   ├── middleware/auth.js JWT verification
-│   └── routes/            one router per resource
-├── tests/                 Jest + Supertest integration tests
-├── schema.sql, seed.sql   database schema and demo data
+│   ├── app.js             aplikacija Express: vmesna oprema in poti
+│   ├── db.js              bazen povezav MySQL
+│   ├── seats.js           preverjanje sedežev, skupno za poti rezervacij
+│   ├── time.js            trenutni stenski čas v časovnem pasu kina
+│   ├── email.js           predloge in pošiljanje e-pošte (Resend)
+│   ├── push.js            potisna obvestila Expo
+│   ├── middleware/auth.js preverjanje JWT
+│   └── routes/            en usmerjevalnik na vir
+├── tests/                 integracijski testi z Jestom in Supertestom
+├── schema.sql, seed.sql   shema baze in demo podatki
 ├── Dockerfile, docker-compose.yml
-└── .github/workflows/     CI pipeline
+└── .github/workflows/     CI
 ```
 
 ## CI/CD
 
-Every push and pull request runs [the CI workflow](.github/workflows/ci.yml):
+Ob vsakem pushu in pull requestu se zažene [CI workflow](.github/workflows/ci.yml):
 
-1. **Lint and format:** ESLint and a Prettier check.
-2. **Tests:** the full test suite against a MySQL 8.4 service container.
-3. **Docker:** builds the image, starts the API and database with Docker Compose, and logs in
-   with the seeded demo account as a smoke test.
+1. **Lint in formatiranje:** ESLint in preverjanje s Prettierjem.
+2. **Testi:** vsi testi proti MySQL 8.4 v storitvenem kontejnerju.
+3. **Docker:** zgradi sliko, z Docker Compose zažene API in bazo ter se za preizkus prijavi z
+   demo računom iz seeda.
 
-Railway is set to wait for CI, so a commit reaches production only after all checks pass.
+Railway počaka na CI, zato commit pride v produkcijo šele, ko uspejo vsa preverjanja.
 
-## Author
+## Avtor
 
-**Vid Gudič** · bachelor's thesis, CPU, 2026
+**Vid Gudič** · diplomska naloga, CPU, 2026
