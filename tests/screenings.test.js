@@ -7,7 +7,7 @@ beforeAll(resetData);
 afterAll(() => db.end());
 
 describe('GET /api/screenings', () => {
-    it('lists upcoming screenings with film and room details', async () => {
+    it('vrne prihodnje predstave s podatki o filmu in dvorani', async () => {
         const res = await request(app).get('/api/screenings');
 
         expect(res.status).toBe(200);
@@ -24,8 +24,8 @@ describe('GET /api/screenings', () => {
     });
 });
 
-describe('screening times', () => {
-    it('are returned exactly as stored, regardless of the server time zone', async () => {
+describe('časi predstav', () => {
+    it('se vrnejo točno tako, kot so shranjeni, ne glede na časovni pas strežnika', async () => {
         const [[stored]] = await db.query(
             "SELECT id, DATE_FORMAT(start_time, '%Y-%m-%dT%H:%i:%s') AS wall FROM screenings ORDER BY id LIMIT 1"
         );
@@ -33,13 +33,13 @@ describe('screening times', () => {
         const res = await request(app).get('/api/screenings');
         const screening = res.body.find((s) => s.id === stored.id);
 
-        // Times are wall-clock values and are sent as UTC ISO strings
+        // Časi so stenski časi in se pošljejo kot nizi ISO v UTC
         expect(screening.start_time).toBe(`${stored.wall}.000Z`);
     });
 });
 
 describe('GET /api/screenings/:id/seats', () => {
-    it('marks seats held by the seeded reservation as taken', async () => {
+    it('sedeže iz rezervacije v seedu označi kot zasedene', async () => {
         const screening = await screeningAt(0);
         const taken = await seatIds(screening.room_id, 'D', [5, 6]);
 
@@ -51,7 +51,7 @@ describe('GET /api/screenings/:id/seats', () => {
         expect(takenIds.sort()).toEqual(taken.sort());
     });
 
-    it('returns 404 for an unknown screening', async () => {
+    it('za neznano predstavo vrne 404', async () => {
         const res = await request(app).get('/api/screenings/999999/seats');
         expect(res.status).toBe(404);
     });

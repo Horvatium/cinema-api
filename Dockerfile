@@ -8,7 +8,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY server.js ./
 COPY src ./src
 
-# Uploaded posters are written here; owned by the unprivileged node user
+# Sem se shranjujejo naloženi plakati; lastnik je neprivilegirani uporabnik node
 RUN mkdir -p uploads/posters && chown -R node:node uploads
 USER node
 

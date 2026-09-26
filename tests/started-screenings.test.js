@@ -1,13 +1,12 @@
-// Screening times are the cinema's wall-clock times (Europe/Ljubljana), while
-// the production server runs in UTC. A screening that started 30 minutes ago
-// in Ljubljana must be treated as started, whatever time zone the server or
-// the database uses.
+// Časi predstav so stenski časi kina (Europe/Ljubljana), produkcijski strežnik
+// pa teče v UTC. Predstava, ki se je v Ljubljani začela pred 30 minutami, mora
+// veljati za začeto ne glede na časovni pas strežnika ali baze.
 const request = require('supertest');
 const app = require('../src/app');
 const { resetData } = require('./db-utils');
 const { db, bearer, CUSTOMER_ID, seatIds } = require('./helpers');
 
-// Ljubljana wall-clock time `minutes` from now, as stored in the database
+// Stenski čas v Ljubljani čez `minutes` minut, kot je zapisan v bazi
 const wallClock = (minutes) =>
     new Date(Date.now() + minutes * 60000)
         .toLocaleString('sv-SE', { timeZone: 'Europe/Ljubljana', hour12: false })
@@ -25,13 +24,13 @@ beforeAll(async () => {
 });
 afterAll(() => db.end());
 
-describe('a screening that started 30 minutes ago', () => {
-    it('is not listed in the programme', async () => {
+describe('predstava, ki se je začela pred 30 minutami', () => {
+    it('ni v sporedu', async () => {
         const res = await request(app).get('/api/screenings');
         expect(res.body.map((s) => s.id)).not.toContain(startedId);
     });
 
-    it('cannot be booked', async () => {
+    it('je ni mogoče rezervirati', async () => {
         const seats = await seatIds(1, 'F', [1]);
         const res = await request(app)
             .post('/api/reservations')
@@ -40,7 +39,7 @@ describe('a screening that started 30 minutes ago', () => {
         expect(res.status).toBe(400);
     });
 
-    it('cannot be paid for', async () => {
+    it('je ni mogoče plačati', async () => {
         const seats = await seatIds(1, 'F', [2]);
         const res = await request(app)
             .post('/api/payments/create-intent')

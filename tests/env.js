@@ -1,8 +1,8 @@
-// Test environment. Values are set before any app module loads, and dotenv
-// never overrides existing variables, so a developer's real .env cannot point
-// the tests at a production database or send real emails.
-// Defaults match the db service in docker-compose.yml (`docker compose up -d db`).
-// Override them with TEST_DB_* variables, e.g. in CI.
+// Testno okolje. Vrednosti se nastavijo, preden se naloži katerikoli modul
+// aplikacije, dotenv pa obstoječih spremenljivk ne prepiše. Razvijalčev pravi
+// .env zato testov ne more usmeriti na produkcijsko bazo ali poslati prave pošte.
+// Privzete vrednosti ustrezajo storitvi db v docker-compose.yml
+// (`docker compose up -d db`); prepišeš jih s spremenljivkami TEST_DB_*, npr. v CI.
 Object.assign(process.env, {
     DB_HOST: process.env.TEST_DB_HOST ?? '127.0.0.1',
     DB_PORT: process.env.TEST_DB_PORT ?? '3307',
@@ -16,13 +16,13 @@ Object.assign(process.env, {
     RESEND_API_KEY: '',
     EMAIL_FROM: '',
     DOTENV_CONFIG_QUIET: 'true',
-    // Run as on a developer machine in Slovenia, so tests catch code that
-    // silently depends on the server running in UTC (as Railway and CI do)
+    // Teci kot na razvijalčevem računalniku v Sloveniji, da testi ujamejo kodo,
+    // ki tiho predpostavlja, da strežnik teče v UTC (kot Railway in CI)
     TZ: 'Europe/Ljubljana',
 });
 
-// The test database is dropped and recreated, so refuse anything that does
-// not look like a dedicated test database.
+// Testna baza se izbriše in ustvari na novo, zato zavrni vse, kar ni videti
+// kot namenska testna baza.
 if (!process.env.DB_NAME.endsWith('_test')) {
-    throw new Error(`Refusing to run tests against database "${process.env.DB_NAME}"`);
+    throw new Error(`Testi se ne zaženejo na bazi "${process.env.DB_NAME}"`);
 }

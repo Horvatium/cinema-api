@@ -13,7 +13,7 @@ const reserve = (screeningId, seats, userId = CUSTOMER_ID) =>
         .send({ screening_id: screeningId, seat_ids: seats });
 
 describe('POST /api/reservations', () => {
-    it('books free seats and charges the screening price per seat', async () => {
+    it('rezervira proste sedeže in zaračuna ceno predstave na sedež', async () => {
         const screening = await screeningAt(1);
         const seats = await seatIds(screening.room_id, 'A', [1, 2]);
 
@@ -23,7 +23,7 @@ describe('POST /api/reservations', () => {
         expect(Number(res.body.total_price)).toBeCloseTo(2 * Number(screening.price));
     });
 
-    it('refuses seats that are already booked', async () => {
+    it('zavrne že rezervirane sedeže', async () => {
         const screening = await screeningAt(1);
         const seats = await seatIds(screening.room_id, 'A', [2, 3]);
 
@@ -32,7 +32,7 @@ describe('POST /api/reservations', () => {
         expect(res.status).toBe(409);
     });
 
-    it('refuses seats from the seeded reservation', async () => {
+    it('zavrne sedeže iz rezervacije v seedu', async () => {
         const screening = await screeningAt(0);
         const seats = await seatIds(screening.room_id, 'D', [5]);
 
@@ -41,17 +41,17 @@ describe('POST /api/reservations', () => {
         expect(res.status).toBe(409);
     });
 
-    it('validates the request body', async () => {
+    it('preveri vsebino zahtevka', async () => {
         const res = await reserve(undefined, []);
         expect(res.status).toBe(400);
     });
 
-    it('returns 404 for an unknown screening', async () => {
+    it('za neznano predstavo vrne 404', async () => {
         const res = await reserve(999999, [1]);
         expect(res.status).toBe(404);
     });
 
-    it('refuses a seat from a different room', async () => {
+    it('zavrne sedež iz druge dvorane', async () => {
         const screening = await screeningAt(1);
         const otherRoom = screening.room_id === 1 ? 2 : 1;
         const seats = await seatIds(otherRoom, 'E', [1]);
@@ -61,7 +61,7 @@ describe('POST /api/reservations', () => {
         expect(res.status).toBe(400);
     });
 
-    it('refuses the same seat listed twice', async () => {
+    it('zavrne isti sedež, naveden dvakrat', async () => {
         const screening = await screeningAt(1);
         const [seat] = await seatIds(screening.room_id, 'E', [2]);
 
@@ -72,7 +72,7 @@ describe('POST /api/reservations', () => {
 });
 
 describe('PUT /api/reservations/:id/cancel', () => {
-    it('frees the seats of a cancelled reservation', async () => {
+    it('preklic rezervacije sprosti sedeže', async () => {
         const screening = await screeningAt(2);
         const seats = await seatIds(screening.room_id, 'B', [4]);
 
@@ -88,19 +88,19 @@ describe('PUT /api/reservations/:id/cancel', () => {
         expect(again.status).toBe(201);
     });
 
-    it('does not let a user cancel a reservation that is not theirs', async () => {
+    it('uporabnik ne more preklicati tuje rezervacije', async () => {
         const res = await request(app).put('/api/reservations/1/cancel').set(bearer(999));
         expect(res.status).toBe(404);
     });
 });
 
 describe('GET /api/reservations', () => {
-    it('is only available to admins', async () => {
+    it('je na voljo samo skrbnikom', async () => {
         const res = await request(app).get('/api/reservations').set(bearer(CUSTOMER_ID));
         expect(res.status).toBe(403);
     });
 
-    it('lists confirmed reservations for an admin', async () => {
+    it('skrbniku vrne potrjene rezervacije', async () => {
         const res = await request(app).get('/api/reservations').set(bearer(ADMIN_ID, 'admin'));
         expect(res.status).toBe(200);
         expect(res.body.length).toBeGreaterThan(0);

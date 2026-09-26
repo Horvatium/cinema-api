@@ -1,13 +1,16 @@
--- KinoPlex demo data. Load after schema.sql:
+-- Demo podatki za KinoPlex. Naloži jih po schema.sql:
 --   mysql -u root -p cinema < schema.sql
 --   mysql -u root -p cinema < seed.sql
 --
--- Test accounts (for local development only):
---   admin@kinoplex.test / Admin123!  (admin)
---   demo@kinoplex.test  / Demo123!   (customer)
+-- Testna računa (samo za lokalni razvoj):
+--   admin@kinoplex.test / Admin123!  (skrbnik)
+--   demo@kinoplex.test  / Demo123!   (stranka)
 --
--- Screenings are generated relative to the current date, so the programme
--- always shows upcoming showtimes regardless of when the seed is run.
+-- Predstave so ustvarjene glede na današnji datum, zato spored vedno kaže
+-- prihodnje termine, ne glede na to, kdaj se seed zažene.
+--
+-- POZOR: skripta najprej izprazni vse tabele. Nikoli je ne zaganjaj na
+-- produkcijski bazi.
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -21,20 +24,20 @@ TRUNCATE TABLE users;
 TRUNCATE TABLE email_log;
 SET FOREIGN_KEY_CHECKS = 1;
 
--- Users (passwords hashed with bcrypt, cost 10)
+-- Uporabniki (gesla zgoščena z bcrypt, faktor 10)
 INSERT INTO users (id, first_name, last_name, email, password, phone, role, email_verified) VALUES
 (1, 'Admin', 'KinoPlex', 'admin@kinoplex.test',
     '$2b$10$6fubTVaqV.rm8ZBEUEHXR.wydkgTif21fScKFQOmSMbt1k8un45S2', NULL, 'admin', 1),
 (2, 'Demo', 'Uporabnik', 'demo@kinoplex.test',
     '$2b$10$K3NjBDc4nnjwR9opEgdp3OfnOU0zpiEzmKnTVFrNbF4vfXPmiKlW2', '040123456', 'customer', 1);
 
--- Rooms
+-- Dvorane
 INSERT INTO rooms (id, name, capacity) VALUES
 (1, 'Dvorana 1', 60),
 (2, 'Dvorana 2', 40);
 
--- Seats: room 1 = rows A-F x 10 seats, room 2 = rows A-E x 8 seats
--- (same layout the API creates when an admin adds a room)
+-- Sedeži: dvorana 1 = vrste A-F po 10 sedežev, dvorana 2 = vrste A-E po 8
+-- (enaka razporeditev, kot jo ustvari API, ko skrbnik doda dvorano)
 INSERT INTO seats (room_id, row_label, seat_number)
 WITH RECURSIVE n AS (SELECT 1 AS i UNION ALL SELECT i + 1 FROM n WHERE i < 10)
 SELECT r.room_id, SUBSTRING('ABCDEF', rw.i, 1), s.i
@@ -44,7 +47,7 @@ JOIN n rw ON rw.i <= r.row_count
 JOIN n s ON s.i <= r.per_row
 ORDER BY r.room_id, rw.i, s.i;
 
--- Films (posters left empty; the web app shows a placeholder)
+-- Filmi (brez plakatov; spletna aplikacija prikaže nadomestno sliko)
 INSERT INTO films (id, title, title_sl, genre, duration_minutes, age_rating, synopsis, director,
                    release_year, imdb_url, cast_members) VALUES
 (1, 'Inception', 'Izvor', 'Znanstvena fantastika', 148, '12+',
@@ -72,8 +75,8 @@ INSERT INTO films (id, title, title_sl, genre, duration_minutes, age_rating, syn
     'Denis Villeneuve', 2016, 'https://www.imdb.com/title/tt2543164/',
     'Amy Adams, Jeremy Renner');
 
--- Screenings for the next 7 days: two showtimes per room per day,
--- films rotate so each film appears several times
+-- Predstave za naslednjih 7 dni: dva termina na dvorano na dan,
+-- filmi se izmenjujejo, zato je vsak na sporedu večkrat
 INSERT INTO screenings (film_id, room_id, start_time, end_time, price, active)
 WITH RECURSIVE d AS (SELECT 0 AS day UNION ALL SELECT day + 1 FROM d WHERE day < 6),
 slots AS (
@@ -93,7 +96,7 @@ JOIN LATERAL (
 ) x
 ORDER BY x.start_time, sl.room_id;
 
--- One confirmed reservation for the demo user (seats D5, D6 of the first screening)
+-- Ena potrjena rezervacija za demo uporabnika (sedeža D5, D6 prve predstave)
 INSERT INTO reservations (id, user_id, screening_id, status, total_price)
 SELECT 1, 2, s.id, 'confirmed', 2 * s.price FROM screenings s ORDER BY s.id LIMIT 1;
 

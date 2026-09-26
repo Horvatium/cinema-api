@@ -15,7 +15,7 @@ const connect = (withDatabase = true) =>
         multipleStatements: true,
     });
 
-// Drop and recreate the test database from schema.sql
+// Izbriše testno bazo in jo ustvari na novo iz schema.sql
 const createDatabase = async () => {
     const conn = await connect(false);
     const name = process.env.DB_NAME;
@@ -26,7 +26,7 @@ const createDatabase = async () => {
     await conn.end();
 };
 
-// Restore the demo data from seed.sql (it truncates all tables first)
+// Obnovi demo podatke iz seed.sql (ta najprej izprazni vse tabele)
 const resetData = async () => {
     const conn = await connect();
     await conn.query(read('seed.sql'));

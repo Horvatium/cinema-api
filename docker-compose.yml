@@ -1,11 +1,11 @@
-# Local development stack.
-#   docker compose up -d db               database only (for npm test)
-#   docker compose up --build             database + API
+# Lokalno razvojno okolje.
+#   docker compose up -d db               samo baza (za npm test)
+#   docker compose up --build             baza + API
 #   docker compose --profile web up --build
-#                                         + web app (needs ../cinema-web)
+#                                         + spletna aplikacija (potrebuje ../cinema-web)
 #
-# The database is created from schema.sql and seed.sql on the first start.
-# Screenings in the seed are relative to that day; to reseed, run
+# Baza se ob prvem zagonu ustvari iz schema.sql in seed.sql. Predstave v seedu
+# so računane od tega dne; za ponovno polnjenje zaženi
 #   docker compose down -v
 
 services:
@@ -22,8 +22,8 @@ services:
       - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
     healthcheck:
-      # TCP ping, so it only succeeds once init scripts are done and the
-      # real server is listening
+      # Ping prek TCP uspe šele, ko so začetne skripte končane in posluša
+      # pravi strežnik
       test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-proot']
       interval: 5s
       timeout: 5s
@@ -40,10 +40,10 @@ services:
       DB_SSL: 'false'
       JWT_SECRET: local-dev-secret
       PORT: 5000
-      # Payments need Stripe test keys: export them before `docker compose up`
+      # Plačila potrebujejo testne ključe Stripe: nastavi jih pred `docker compose up`
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
-      # Emails are skipped when RESEND_API_KEY is empty
+      # Brez RESEND_API_KEY se e-pošta ne pošilja
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
     ports:

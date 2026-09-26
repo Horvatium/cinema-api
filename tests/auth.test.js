@@ -7,7 +7,7 @@ beforeAll(resetData);
 afterAll(() => db.end());
 
 describe('POST /api/auth/login', () => {
-    it('returns a JWT for valid credentials', async () => {
+    it('za pravilne podatke vrne JWT', async () => {
         const res = await request(app)
             .post('/api/auth/login')
             .send({ email: 'demo@kinoplex.test', password: 'Demo123!' });
@@ -16,7 +16,7 @@ describe('POST /api/auth/login', () => {
         expect(res.body.token).toEqual(expect.any(String));
     });
 
-    it('rejects a wrong password with 401', async () => {
+    it('napačno geslo zavrne s 401', async () => {
         const res = await request(app)
             .post('/api/auth/login')
             .send({ email: 'demo@kinoplex.test', password: 'wrong' });
@@ -25,7 +25,7 @@ describe('POST /api/auth/login', () => {
         expect(res.body.token).toBeUndefined();
     });
 
-    it('rejects an unknown email with the same 401', async () => {
+    it('neznan e-poštni naslov zavrne z enakim 401', async () => {
         const res = await request(app)
             .post('/api/auth/login')
             .send({ email: 'nobody@kinoplex.test', password: 'Demo123!' });
@@ -33,19 +33,19 @@ describe('POST /api/auth/login', () => {
         expect(res.status).toBe(401);
     });
 
-    it('requires email and password', async () => {
+    it('zahteva e-poštni naslov in geslo', async () => {
         const res = await request(app).post('/api/auth/login').send({});
         expect(res.status).toBe(400);
     });
 });
 
-describe('auth middleware', () => {
-    it('returns 401 without a token', async () => {
+describe('vmesna oprema auth', () => {
+    it('brez žetona vrne 401', async () => {
         const res = await request(app).get('/api/reservations/my');
         expect(res.status).toBe(401);
     });
 
-    it('returns 403 for an invalid token', async () => {
+    it('za neveljaven žeton vrne 403', async () => {
         const res = await request(app)
             .get('/api/reservations/my')
             .set('Authorization', 'Bearer not-a-real-token');

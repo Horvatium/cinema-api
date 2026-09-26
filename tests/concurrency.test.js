@@ -1,6 +1,6 @@
-// Two customers clicking "book" on the same seat at the same moment must not
-// both get it. Each test fires several identical requests in parallel and
-// checks that exactly one of them wins the seat.
+// Dve stranki, ki v istem trenutku rezervirata isti sedež, ga ne smeta dobiti
+// obe. Vsak test hkrati pošlje več enakih zahtevkov in preveri, da sedež dobi
+// natanko eden.
 const request = require('supertest');
 const app = require('../src/app');
 const { resetData } = require('./db-utils');
@@ -31,8 +31,8 @@ const fireInParallel = (path, body) =>
 
 const statuses = (responses) => responses.map((r) => r.status).sort();
 
-describe('concurrent bookings of the same seat', () => {
-    it('POST /api/reservations lets exactly one request win', async () => {
+describe('sočasne rezervacije istega sedeža', () => {
+    it('POST /api/reservations: uspe natanko en zahtevek', async () => {
         const screening = await screeningAt(3);
         const [seat] = await seatIds(screening.room_id, 'C', [3]);
 
@@ -45,7 +45,7 @@ describe('concurrent bookings of the same seat', () => {
         expect(await activeBookings(screening.id, seat)).toBe(1);
     });
 
-    it('POST /api/payments/create-intent holds the seat for exactly one request', async () => {
+    it('POST /api/payments/create-intent: sedež zadrži natanko en zahtevek', async () => {
         const screening = await screeningAt(4);
         const [seat] = await seatIds(screening.room_id, 'C', [4]);
 

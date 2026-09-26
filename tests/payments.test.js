@@ -21,7 +21,7 @@ const createIntent = (screeningId, seats) =>
         .send({ screening_id: screeningId, seat_ids: seats });
 
 describe('POST /api/payments/create-intent', () => {
-    it('holds free seats and returns a Stripe client secret', async () => {
+    it('zadrži proste sedeže in vrne Stripov client secret', async () => {
         const screening = await screeningAt(5);
         const seats = await seatIds(screening.room_id, 'A', [1, 2]);
 
@@ -32,7 +32,7 @@ describe('POST /api/payments/create-intent', () => {
         expect(Number(res.body.total_price)).toBeCloseTo(2 * Number(screening.price));
     });
 
-    it('refuses a seat from a different room', async () => {
+    it('zavrne sedež iz druge dvorane', async () => {
         const screening = await screeningAt(5);
         const otherRoom = screening.room_id === 1 ? 2 : 1;
         const seats = await seatIds(otherRoom, 'E', [1]);
@@ -42,7 +42,7 @@ describe('POST /api/payments/create-intent', () => {
         expect(res.status).toBe(400);
     });
 
-    it('refuses the same seat listed twice', async () => {
+    it('zavrne isti sedež, naveden dvakrat', async () => {
         const screening = await screeningAt(5);
         const [seat] = await seatIds(screening.room_id, 'E', [2]);
 
@@ -51,8 +51,8 @@ describe('POST /api/payments/create-intent', () => {
         expect(res.status).toBe(400);
     });
 
-    it('refuses a screening that has already started', async () => {
-        // Yesterday, so the result does not depend on the database time zone
+    it('zavrne predstavo, ki se je že začela', async () => {
+        // Včerajšnja, da izid ni odvisen od časovnega pasu baze
         const [result] = await db.query(
             `INSERT INTO screenings (film_id, room_id, start_time, end_time, price)
              VALUES (1, 1, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 22 HOUR, 7.00)`
@@ -68,7 +68,7 @@ describe('POST /api/payments/create-intent', () => {
 describe('POST /api/payments/confirm', () => {
     const stripe = require('stripe')();
 
-    // Stripe reports the payment as successful for the given hold
+    // Stripe za dano zadržanje sporoči uspešno plačilo
     const paid = (reservationId, screeningId, userId = CUSTOMER_ID) =>
         stripe.paymentIntents.retrieve.mockResolvedValue({
             id: 'pi_test',
@@ -89,7 +89,7 @@ describe('POST /api/payments/confirm', () => {
 
     beforeEach(() => jest.clearAllMocks());
 
-    it('confirms a paid hold', async () => {
+    it('potrdi plačano zadržanje', async () => {
         const screening = await screeningAt(6);
         const seats = await seatIds(screening.room_id, 'B', [1]);
         const hold = await createIntent(screening.id, seats);
@@ -101,24 +101,24 @@ describe('POST /api/payments/confirm', () => {
         expect(stripe.refunds.create).not.toHaveBeenCalled();
     });
 
-    it('checks the seats stored with the hold, not the seats sent by the client', async () => {
+    it('preveri sedeže iz zadržanja, ne sedežev, ki jih pošlje odjemalec', async () => {
         const screening = await screeningAt(7);
         const [held, other] = await seatIds(screening.room_id, 'B', [2, 3]);
 
-        // Customer holds B2, but the hold expires before the payment completes...
+        // Stranka zadrži B2, a zadržanje poteče, preden je plačilo končano ...
         const hold = await createIntent(screening.id, [held]);
         await db.query(
             'UPDATE reservations SET expires_at = NOW() - INTERVAL 1 MINUTE WHERE id = ?',
             [hold.body.reservation_id]
         );
-        // ...and someone else books B2 in the meantime
+        // ... medtem pa B2 rezervira nekdo drug
         const taken = await request(app)
             .post('/api/reservations')
             .set(bearer(ADMIN_ID))
             .send({ screening_id: screening.id, seat_ids: [held] });
         expect(taken.status).toBe(201);
 
-        // The confirm request lists a different, free seat
+        // Zahtevek za potrditev navaja drug, prost sedež
         paid(hold.body.reservation_id, screening.id);
         const res = await confirm(screening.id, [other]);
 

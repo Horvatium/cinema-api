@@ -1,8 +1,8 @@
 require('./env');
 
-// External services are replaced with stubs: no network calls in tests.
-// Every require('stripe')(key) returns the same stub, so a test can set
-// what Stripe answers with require('stripe')().paymentIntents.retrieve.
+// Zunanje storitve so nadomeščene, testi ne kličejo omrežja. Vsak
+// require('stripe')(ključ) vrne isti nadomestek, zato lahko test z
+// require('stripe')().paymentIntents.retrieve določi, kaj odgovori Stripe.
 jest.mock('stripe', () => {
     const stripe = {
         paymentIntents: {

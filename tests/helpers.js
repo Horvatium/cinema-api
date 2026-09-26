@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const db = require('../src/db');
 
-// Seeded accounts (see seed.sql)
+// Računa iz seeda (glej seed.sql)
 const ADMIN_ID = 1;
 const CUSTOMER_ID = 2;
 
@@ -10,7 +10,7 @@ const tokenFor = (id, role = 'customer') =>
 
 const bearer = (id, role) => ({ Authorization: `Bearer ${tokenFor(id, role)}` });
 
-// Pick an upcoming screening by its position in the programme (0 = first)
+// Vrne prihodnjo predstavo po mestu v sporedu (0 = prva)
 const screeningAt = async (index) => {
     const [rows] = await db.query(
         'SELECT * FROM screenings ORDER BY start_time, id LIMIT 1 OFFSET ?',
@@ -27,7 +27,7 @@ const seatIds = async (roomId, row, numbers) => {
     return rows.map((r) => r.id);
 };
 
-// How many active (confirmed or unexpired pending) bookings hold a seat
+// Koliko aktivnih rezervacij (potrjenih ali veljavnih zadržanj) ima sedež
 const activeBookings = async (screeningId, seatId) => {
     const [[{ n }]] = await db.query(
         `SELECT COUNT(*) AS n
