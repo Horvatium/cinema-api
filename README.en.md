@@ -20,10 +20,18 @@ in production.
   `pending` reservation, a Stripe PaymentIntent is created, and the reservation is confirmed
   only after the server verifies the payment with Stripe. If the seats were lost in the
   meantime, the payment is refunded automatically.
+- **Stripe webhook with idempotent confirmation.** A signed `payment_intent.succeeded` event
+  confirms the reservation even if the customer closes the browser right after paying. The
+  webhook and the browser's call can arrive at the same time; row locks and a refund idempotency
+  key make sure a reservation is confirmed, and money refunded, at most once.
 - **No double booking under concurrency.** Found with a test that fires parallel requests
   for the same seat, then fixed with row locking. See [below](#the-double-booking-bug).
-- **Integration tests against real MySQL**, not mocks: 32 Jest + Supertest tests, run in CI
+- **Integration tests against real MySQL**, not mocks: 98 Jest + Supertest tests, run in CI
   against a MySQL 8.4 service container.
+- **Security and validation:** security headers (helmet), CORS restricted to the web app, rate
+  limiting on login and registration, and zod validation of every request body.
+- **Docs at [`/api/docs`](https://cinema-api-production-a533.up.railway.app/api/docs/)**
+  (OpenAPI 3.1, Swagger UI), structured logging with pino, and a `/health` endpoint.
 - **One-command local setup** with Docker Compose, including a seeded database.
 - **CI/CD** with GitHub Actions: lint, tests, Docker build and a smoke test on every push;
   Railway deploys only after CI passes.
@@ -93,16 +101,18 @@ reservation history is stored. The lock fixes the race without that schema chang
 
 ## Tech stack
 
-| Area                  | Technology                                        |
-| --------------------- | ------------------------------------------------- |
-| Runtime and framework | Node.js 22, Express 5                             |
-| Database              | MySQL 8 (`mysql2`, connection pool, transactions) |
-| Auth                  | JWT (`jsonwebtoken`), bcrypt password hashing     |
-| Payments              | Stripe PaymentIntents and refunds                 |
-| Email and push        | Resend, Expo push notifications                   |
-| Testing               | Jest, Supertest, real MySQL database              |
-| Tooling               | ESLint (flat config), Prettier                    |
-| Infrastructure        | Docker, Docker Compose, GitHub Actions, Railway   |
+| Area                    | Technology                                        |
+| ----------------------- | ------------------------------------------------- |
+| Runtime and framework   | Node.js 22, Express 5                             |
+| Database                | MySQL 8 (`mysql2`, connection pool, transactions) |
+| Auth                    | JWT (`jsonwebtoken`), bcrypt password hashing     |
+| Security and validation | helmet, CORS, express-rate-limit, zod             |
+| Docs and logging        | OpenAPI 3.1, Swagger UI, pino                     |
+| Payments                | Stripe PaymentIntents and refunds                 |
+| Email and push          | Resend, Expo push notifications                   |
+| Testing                 | Jest, Supertest, real MySQL database              |
+| Tooling                 | ESLint (flat config), Prettier                    |
+| Infrastructure          | Docker, Docker Compose, GitHub Actions, Railway   |
 
 ## Getting started
 
@@ -171,21 +181,30 @@ name does not end in `_test`, so a local `.env` can never point the tests at pro
 To use another server, set `TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER`, `TEST_DB_PASSWORD`
 and `TEST_DB_NAME`.
 
-| Suite                        | Covers                                                      |
-| ---------------------------- | ----------------------------------------------------------- |
-| `auth.test.js`               | login, wrong credentials, JWT middleware                    |
-| `screenings.test.js`         | programme listing, seat availability                        |
-| `reservations.test.js`       | booking, conflicts, invalid seats, cancelling, admin access |
-| `payments.test.js`           | seat holds, invalid seats, past screenings, payment confirm |
-| `concurrency.test.js`        | parallel requests for the same seat                         |
-| `started-screenings.test.js` | screenings that already started (time zones)                |
+| Suite                        | Covers                                                             |
+| ---------------------------- | ------------------------------------------------------------------ |
+| `auth.test.js`               | login, wrong credentials, JWT middleware                           |
+| `screenings.test.js`         | programme listing, seat availability                               |
+| `reservations.test.js`       | booking, conflicts, invalid seats, cancelling, admin access        |
+| `payments.test.js`           | seat holds, invalid seats, past screenings, payment confirm        |
+| `concurrency.test.js`        | parallel requests for the same seat                                |
+| `started-screenings.test.js` | screenings that already started (time zones)                       |
+| `webhook.test.js`            | Stripe webhook: signature, repeated and concurrent events, refunds |
+| `validacija.test.js`         | request validation, 403 before validation                          |
+| `security.test.js`           | security headers, CORS, login rate limiting                        |
+| `health.test.js`             | `/health`, request IDs, 404 and malformed JSON                     |
+| `docs.test.js`               | docs, and that every documented route exists                       |
 
 Other scripts: `npm run lint`, `npm run format`, `npm run format:check`.
 
 ## API overview
 
+Full documentation with every field and response is at `/api/docs` (Swagger UI). In
+production, GET routes can be tried there; locally and in Docker, all of them.
+
 All routes are prefixed with `/api`. 🔒 needs a JWT (`Authorization: Bearer <token>`),
-👑 needs the admin role.
+👑 needs the admin role. Invalid input returns `400` with a `napake` field
+(`[{ polje, sporocilo }]`, i.e. field and message).
 
 | Method            | Route                            | Description                                                    |
 | ----------------- | -------------------------------- | -------------------------------------------------------------- |
@@ -202,6 +221,7 @@ All routes are prefixed with `/api`. 🔒 needs a JWT (`Authorization: Bearer <t
 | POST, PUT, DELETE | `/rooms`, `/rooms/:id`           | Manage rooms; seats are generated automatically 👑             |
 | POST              | `/payments/create-intent`        | Hold seats for 10 minutes and create a Stripe PaymentIntent 🔒 |
 | POST              | `/payments/confirm`              | Verify the payment with Stripe and confirm the reservation 🔒  |
+| POST              | `/payments/webhook`              | Stripe webhook `payment_intent.succeeded` (Stripe signature)   |
 | POST              | `/payments/cancel-intent`        | Release held seats 🔒                                          |
 | POST              | `/reservations`                  | Book without payment (used by the mobile app) 🔒               |
 | GET               | `/reservations/my`               | The user's reservations 🔒                                     |
@@ -210,6 +230,8 @@ All routes are prefixed with `/api`. 🔒 needs a JWT (`Authorization: Bearer <t
 | POST              | `/upload/poster`                 | Upload a film poster 👑                                        |
 | GET, DELETE       | `/users`, `/users/:id`           | Manage users 👑                                                |
 | POST              | `/notifications/token`           | Save an Expo push token 🔒                                     |
+| GET               | `/health` (no `/api`)            | Health check: 200 when the database is reachable, else 503     |
+| GET               | `/docs`, `/openapi.json`         | Docs (Swagger UI) and the OpenAPI spec                         |
 
 ## Project structure
 
@@ -219,10 +241,15 @@ All routes are prefixed with `/api`. 🔒 needs a JWT (`Authorization: Bearer <t
 │   ├── app.js             Express app: middleware and routes
 │   ├── db.js              MySQL connection pool
 │   ├── seats.js           seat validation shared by booking routes
+│   ├── potrditev.js       idempotent payment confirmation (webhook and /confirm)
+│   ├── validacija.js      zod schemas and the validiraj() middleware
+│   ├── security.js        helmet, CORS, rate limiting
+│   ├── logger.js          pino logger
+│   ├── openapi.js         OpenAPI spec
 │   ├── time.js            current wall-clock time in the cinema's time zone
 │   ├── email.js           email templates and sending (Resend)
 │   ├── push.js            Expo push notifications
-│   ├── middleware/auth.js JWT verification
+│   ├── middleware/        JWT (auth.js) and admin role (admin.js) checks
 │   └── routes/            one router per resource
 ├── tests/                 Jest + Supertest integration tests
 ├── schema.sql, seed.sql   database schema and demo data

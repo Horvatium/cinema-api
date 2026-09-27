@@ -20,11 +20,20 @@ nastal kot diplomska naloga in deluje v produkciji.
   rezervacija v stanju `pending`, ustvari se Stripe PaymentIntent, rezervacija pa se potrdi
   šele, ko strežnik plačilo preveri pri Stripu. Če so sedeži medtem izgubljeni, se denar
   samodejno vrne.
+- **Stripe webhook z idempotentno potrditvijo.** Rezervacijo potrdi Stripov dogodek
+  `payment_intent.succeeded` s preverjenim podpisom, tudi če stranka po plačilu zapre brskalnik.
+  Webhook in klic iz brskalnika lahko prideta hkrati; zaklepi in ključ idempotentnosti pri
+  vračilu zagotovijo, da se rezervacija potrdi in denar vrne največ enkrat.
 - **Brez dvojnih rezervacij pri sočasnih zahtevkih.** Napako je razkril test, ki za isti
   sedež pošlje več zahtevkov hkrati, popravljena pa je z zaklepanjem vrstic. Glej
   [spodaj](#napaka-z-dvojno-rezervacijo).
-- **Integracijski testi proti pravi bazi MySQL**, ne proti nadomestkom: 32 testov z Jestom in
+- **Integracijski testi proti pravi bazi MySQL**, ne proti nadomestkom: 98 testov z Jestom in
   Supertestom, ki v CI tečejo proti MySQL 8.4.
+- **Varnost in validacija:** varnostne glave (helmet), CORS omejen na spletno stran, omejitev
+  poskusov prijave in registracije ter validacija vseh vhodnih podatkov z zod.
+- **Dokumentacija na [`/api/docs`](https://cinema-api-production-a533.up.railway.app/api/docs/)**
+  (OpenAPI 3.1, Swagger UI), strukturirano beleženje s pino in pot `/health` za preverjanje
+  delovanja.
 - **Lokalni zagon z enim ukazom** z Docker Compose, skupaj z bazo in demo podatki.
 - **CI/CD** z GitHub Actions: lint, testi, gradnja Docker slike in preizkus delovanja ob
   vsakem pushu; Railway objavi šele, ko CI uspe.
@@ -94,16 +103,18 @@ in spremeniti hranjenje zgodovine rezervacij. Zaklep odpravi tekmo brez te sprem
 
 ## Tehnologije
 
-| Področje                  | Tehnologija                                      |
-| ------------------------- | ------------------------------------------------ |
-| Izvajalno okolje, ogrodje | Node.js 22, Express 5                            |
-| Podatkovna baza           | MySQL 8 (`mysql2`, bazen povezav, transakcije)   |
-| Avtentikacija             | JWT (`jsonwebtoken`), zgoščevanje gesel z bcrypt |
-| Plačila                   | Stripe PaymentIntents in vračila                 |
-| E-pošta in obvestila      | Resend, potisna obvestila Expo                   |
-| Testiranje                | Jest, Supertest, prava baza MySQL                |
-| Orodja                    | ESLint (flat config), Prettier                   |
-| Infrastruktura            | Docker, Docker Compose, GitHub Actions, Railway  |
+| Področje                   | Tehnologija                                      |
+| -------------------------- | ------------------------------------------------ |
+| Izvajalno okolje, ogrodje  | Node.js 22, Express 5                            |
+| Podatkovna baza            | MySQL 8 (`mysql2`, bazen povezav, transakcije)   |
+| Avtentikacija              | JWT (`jsonwebtoken`), zgoščevanje gesel z bcrypt |
+| Varnost in validacija      | helmet, CORS, express-rate-limit, zod            |
+| Dokumentacija in beleženje | OpenAPI 3.1, Swagger UI, pino                    |
+| Plačila                    | Stripe PaymentIntents in vračila                 |
+| E-pošta in obvestila       | Resend, potisna obvestila Expo                   |
+| Testiranje                 | Jest, Supertest, prava baza MySQL                |
+| Orodja                     | ESLint (flat config), Prettier                   |
+| Infrastruktura             | Docker, Docker Compose, GitHub Actions, Railway  |
 
 ## Zagon
 
@@ -179,13 +190,22 @@ zato lokalni `.env` testov nikoli ne more usmeriti na produkcijo. Za drug strež
 | `payments.test.js`           | zadržanje sedežev, neveljavni sedeži, pretekle predstave, potrditev plačila |
 | `concurrency.test.js`        | sočasni zahtevki za isti sedež                                              |
 | `started-screenings.test.js` | predstave, ki so se že začele (časovni pasovi)                              |
+| `webhook.test.js`            | Stripe webhook: podpis, ponovljeni in sočasni dogodki, vračila              |
+| `validacija.test.js`         | validacija vhodnih podatkov, 403 pred validacijo                            |
+| `security.test.js`           | varnostne glave, CORS, omejitev poskusov prijave                            |
+| `health.test.js`             | `/health`, ID zahtevka, 404 in neveljaven JSON                              |
+| `docs.test.js`               | dokumentacija in ujemanje dokumentiranih poti s kodo                        |
 
 Druge skripte: `npm run lint`, `npm run format`, `npm run format:check`.
 
 ## Pregled API-ja
 
+Podrobna dokumentacija z vsemi polji in odgovori je na `/api/docs` (Swagger UI). Na produkciji
+je tam mogoče preizkusiti poti GET, lokalno in v Dockerju vse.
+
 Vse poti se začnejo z `/api`. 🔒 zahteva JWT (`Authorization: Bearer <žeton>`),
-👑 zahteva vlogo skrbnika.
+👑 zahteva vlogo skrbnika. Neveljavni podatki vrnejo `400` s poljem `napake`
+(`[{ polje, sporocilo }]`).
 
 | Metoda            | Pot                              | Opis                                                         |
 | ----------------- | -------------------------------- | ------------------------------------------------------------ |
@@ -202,6 +222,7 @@ Vse poti se začnejo z `/api`. 🔒 zahteva JWT (`Authorization: Bearer <žeton>
 | POST, PUT, DELETE | `/rooms`, `/rooms/:id`           | Upravljanje dvoran; sedeži se ustvarijo samodejno 👑         |
 | POST              | `/payments/create-intent`        | Zadrži sedeže za 10 minut in ustvari Stripe PaymentIntent 🔒 |
 | POST              | `/payments/confirm`              | Preveri plačilo pri Stripu in potrdi rezervacijo 🔒          |
+| POST              | `/payments/webhook`              | Stripov webhook `payment_intent.succeeded` (podpis Stripe)   |
 | POST              | `/payments/cancel-intent`        | Sprosti zadržane sedeže 🔒                                   |
 | POST              | `/reservations`                  | Rezervacija brez plačila (uporablja mobilna aplikacija) 🔒   |
 | GET               | `/reservations/my`               | Rezervacije uporabnika 🔒                                    |
@@ -210,6 +231,8 @@ Vse poti se začnejo z `/api`. 🔒 zahteva JWT (`Authorization: Bearer <žeton>
 | POST              | `/upload/poster`                 | Nalaganje plakata 👑                                         |
 | GET, DELETE       | `/users`, `/users/:id`           | Upravljanje uporabnikov 👑                                   |
 | POST              | `/notifications/token`           | Shrani žeton Expo za potisna obvestila 🔒                    |
+| GET               | `/health` (brez `/api`)          | Preverjanje delovanja: 200, ko je baza dosegljiva, sicer 503 |
+| GET               | `/docs`, `/openapi.json`         | Dokumentacija (Swagger UI) in specifikacija OpenAPI          |
 
 ## Struktura projekta
 
@@ -219,10 +242,15 @@ Vse poti se začnejo z `/api`. 🔒 zahteva JWT (`Authorization: Bearer <žeton>
 │   ├── app.js             aplikacija Express: vmesna oprema in poti
 │   ├── db.js              bazen povezav MySQL
 │   ├── seats.js           preverjanje sedežev, skupno za poti rezervacij
+│   ├── potrditev.js       idempotentna potrditev plačila (webhook in /confirm)
+│   ├── validacija.js      sheme zod in vmesna oprema validiraj()
+│   ├── security.js        helmet, CORS, omejitev poskusov
+│   ├── logger.js          beleženje s pino
+│   ├── openapi.js         specifikacija OpenAPI
 │   ├── time.js            trenutni stenski čas v časovnem pasu kina
 │   ├── email.js           predloge in pošiljanje e-pošte (Resend)
 │   ├── push.js            potisna obvestila Expo
-│   ├── middleware/auth.js preverjanje JWT
+│   ├── middleware/        preverjanje JWT (auth.js) in vloge skrbnika (admin.js)
 │   └── routes/            en usmerjevalnik na vir
 ├── tests/                 integracijski testi z Jestom in Supertestom
 ├── schema.sql, seed.sql   shema baze in demo podatki
