@@ -5,14 +5,10 @@ const db = require('../db');
 const auth = require('../middleware/auth');
 const { stenskiCasZdaj } = require('../time');
 const { preveriSedeze } = require('../seats');
-const { sendReservationConfirmed } = require('../email');
+const { potrdiPlacilo, ZASEDENI } = require('../potrditev');
 
 // Koliko minut so sedeži zadržani med plačilom
 const ZADRZANJE_MINUT = 10;
-
-// Pogoj, ki določa, kateri zapisi sedež dejansko zasedajo
-const ZASEDENI = `(reservations.status = 'confirmed'
-     OR (reservations.status = 'pending' AND reservations.expires_at > NOW()))`;
 
 // USTVARI NAMERO PLAČILA IN ZADRŽI SEDEŽE
 router.post('/create-intent', auth, async (req, res) => {
@@ -136,11 +132,18 @@ router.post('/create-intent', auth, async (req, res) => {
 });
 
 // POTRDI PLAČILO IN POTRDI REZERVACIJO
+// Brskalnik pokliče to pot takoj po plačilu, da stranka potrditev vidi takoj.
+// Isto rezervacijo potrdi tudi Stripov webhook (webhook.js), če se brskalnik
+// po plačilu zapre; obe poti uporabljata potrdiPlacilo, ki je idempotentna.
 router.post('/confirm', auth, async (req, res) => {
     // Sedeži se preberejo iz zadržanja v bazi, ne iz zahtevka: odjemalec bi
     // sicer lahko poslal druge (proste) sedeže in potrdil zadržanje sedežev,
     // ki jih je medtem kupil nekdo drug
     const { payment_intent_id, screening_id } = req.body;
+
+    if (!payment_intent_id || !screening_id) {
+        return res.status(400).json({ message: 'Manjkajo podatki o plačilu.' });
+    }
 
     try {
         // Preveri, ali je plačilo pri Stripe dejansko uspelo
@@ -158,129 +161,32 @@ router.post('/confirm', auth, async (req, res) => {
             return res.status(403).json({ message: 'Preverjanje plačila ni uspelo.' });
         }
 
-        const reservation_id = Number(paymentIntent.metadata.reservation_id);
-        const connection = await db.getConnection();
+        const { izid, reservationId, totalPrice } = await potrdiPlacilo(paymentIntent, req.log);
 
-        try {
-            await connection.beginTransaction();
-
-            // Isti zaklep predstave kot pri zadržanju in rezervaciji: če je
-            // zadržanje poteklo, drug zahtevek ne more hkrati zasesti istih
-            // sedežev, medtem ko jih tu preverjamo in potrjujemo
-            await connection.query('SELECT id FROM screenings WHERE id = ? FOR UPDATE', [
-                screening_id,
-            ]);
-
-            const [rows] = await connection.query(
-                'SELECT * FROM reservations WHERE id = ? FOR UPDATE',
-                [reservation_id]
-            );
-
-            if (rows.length === 0 || rows[0].user_id !== req.user.id) {
-                await connection.rollback();
-                await stripe.refunds.create({ payment_intent: payment_intent_id });
-                return res.status(409).json({
-                    message: 'Rezervacije ni bilo mogoče potrditi. Sredstva so bila vrnjena.',
+        switch (izid) {
+            case 'potrjena':
+                return res.status(201).json({
+                    message: 'Plačilo je uspelo, rezervacija je potrjena!',
+                    reservation_id: reservationId,
+                    total_price: totalPrice,
                 });
-            }
-
-            // Če je bila rezervacija že potrjena, ne stori ničesar (dvojni klic)
-            if (rows[0].status === 'confirmed') {
-                await connection.commit();
+            case 'ze_potrjena':
                 return res.status(200).json({
                     message: 'Rezervacija je bila že potrjena.',
-                    reservation_id,
-                    total_price: rows[0].total_price,
+                    reservation_id: reservationId,
+                    total_price: totalPrice,
                 });
-            }
-
-            // Zadržanje je morda poteklo — preveri, ali so sedeže tega zadržanja
-            // medtem zasedle druge rezervacije
-            const [takenSeats] = await connection.query(
-                `
-                SELECT own.seat_id FROM reservation_seats own
-                JOIN reservation_seats other
-                    ON other.seat_id = own.seat_id AND other.reservation_id != own.reservation_id
-                JOIN reservations ON reservations.id = other.reservation_id
-                WHERE own.reservation_id = ?
-                AND reservations.screening_id = ?
-                AND ${ZASEDENI}
-            `,
-                [reservation_id, rows[0].screening_id]
-            );
-
-            if (takenSeats.length > 0) {
-                await connection.rollback();
-                // Vrni sredstva, ker sedeži medtem niso več na voljo
-                await stripe.refunds.create({
-                    payment_intent: payment_intent_id,
-                });
+            case 'zasedeno':
                 return res.status(409).json({
                     message:
                         'Sedeži so bili zasedeni medtem, ko ste plačevali. Sredstva so bila vrnjena.',
                 });
-            }
-
-            // Potrdi rezervacijo in odstrani rok veljavnosti
-            await connection.query(
-                "UPDATE reservations SET status = 'confirmed', expires_at = NULL WHERE id = ?",
-                [reservation_id]
-            );
-
-            await connection.commit();
-
-            const total_price = paymentIntent.amount / 100;
-
-            // Podatki za potrditveno e-sporočilo
-            try {
-                const [emailData] = await db.query(
-                    `
-                    SELECT
-                        users.first_name, users.email,
-                        films.title AS film_title,
-                        screenings.start_time,
-                        rooms.name AS room_name,
-                        GROUP_CONCAT(
-                            CONCAT(seats.row_label, seats.seat_number)
-                            ORDER BY seats.row_label, seats.seat_number
-                        ) AS seat_labels
-                    FROM reservations
-                    JOIN users ON reservations.user_id = users.id
-                    JOIN screenings ON reservations.screening_id = screenings.id
-                    JOIN films ON screenings.film_id = films.id
-                    JOIN rooms ON screenings.room_id = rooms.id
-                    LEFT JOIN reservation_seats ON reservations.id = reservation_seats.reservation_id
-                    LEFT JOIN seats ON reservation_seats.seat_id = seats.id
-                    WHERE reservations.id = ?
-                    GROUP BY reservations.id
-                `,
-                    [reservation_id]
-                );
-
-                if (emailData.length > 0) {
-                    const d = emailData[0];
-                    sendReservationConfirmed(
-                        { first_name: d.first_name, email: d.email },
-                        d.film_title,
-                        { start_time: d.start_time, room_name: d.room_name },
-                        d.seat_labels,
-                        total_price
-                    );
-                }
-            } catch (mailErr) {
-                req.log.error({ err: mailErr }, 'Napaka pri pripravi e-sporočila');
-            }
-
-            res.status(201).json({
-                message: 'Plačilo je uspelo, rezervacija je potrjena!',
-                reservation_id,
-                total_price,
-            });
-        } catch (err) {
-            await connection.rollback();
-            throw err;
-        } finally {
-            connection.release();
+            case 'preklicana':
+                return res.status(409).json({ message: 'Rezervacija je bila preklicana.' });
+            default:
+                return res.status(409).json({
+                    message: 'Rezervacije ni bilo mogoče potrditi. Sredstva so bila vrnjena.',
+                });
         }
     } catch (err) {
         req.log.error(err);

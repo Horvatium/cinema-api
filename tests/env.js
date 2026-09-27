@@ -13,6 +13,7 @@ Object.assign(process.env, {
     JWT_SECRET: 'test-secret',
     STRIPE_SECRET_KEY: 'sk_test_dummy',
     STRIPE_PUBLISHABLE_KEY: 'pk_test_dummy',
+    STRIPE_WEBHOOK_SECRET: 'whsec_test',
     RESEND_API_KEY: '',
     EMAIL_FROM: '',
     DOTENV_CONFIG_QUIET: 'true',

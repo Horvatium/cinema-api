@@ -123,7 +123,10 @@ describe('POST /api/payments/confirm', () => {
         const res = await confirm(screening.id, [other]);
 
         expect(res.status).toBe(409);
-        expect(stripe.refunds.create).toHaveBeenCalledWith({ payment_intent: 'pi_test' });
+        expect(stripe.refunds.create).toHaveBeenCalledWith(
+            { payment_intent: 'pi_test' },
+            { idempotencyKey: 'refund-pi_test' }
+        );
         expect(await activeBookings(screening.id, held)).toBe(1);
     });
 });

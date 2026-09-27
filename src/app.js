@@ -44,6 +44,15 @@ app.use(
 );
 app.use(helmetMiddleware);
 app.use(corsMiddleware);
+
+// Stripov webhook potrebuje surovo telo za preverjanje podpisa, zato je
+// registriran pred express.json(), ki bi telo že razčlenil
+app.post(
+    '/api/payments/webhook',
+    express.raw({ type: 'application/json' }),
+    require('./routes/webhook')
+);
+
 app.use(express.json());
 
 // Disk se priklopi prazen, zato mapo ustvarimo ob zagonu
