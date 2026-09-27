@@ -19,19 +19,42 @@ const dovoljeniIzvori = () =>
         ? process.env.CORS_ORIGINS.split(',').map((izvor) => izvor.trim())
         : privzetiIzvori;
 
+const jeDovoljen = (origin) =>
+    dovoljeniIzvori().some((izvor) =>
+        izvor instanceof RegExp ? izvor.test(origin) : izvor === origin
+    );
+
 // Zahtevki brez glave Origin (mobilna aplikacija, curl, Stripe) niso
 // brskalniški zahtevki z drugega izvora, zato jih CORS ne omejuje.
 // Za nedovoljen izvor cors ne doda glav in brskalnik odgovor zavrne.
+// credentials: dovoljene strani smejo pošiljati piškotek seje.
 const corsMiddleware = cors({
-    origin: (origin, callback) => {
-        const dovoljen =
-            !origin ||
-            dovoljeniIzvori().some((izvor) =>
-                izvor instanceof RegExp ? izvor.test(origin) : izvor === origin
-            );
-        callback(null, dovoljen);
-    },
+    origin: (origin, callback) => callback(null, !origin || jeDovoljen(origin)),
+    credentials: true,
 });
+
+// Zaščita pred CSRF. Brskalnik piškotek seje pošlje samodejno, zato mora API
+// pri zahtevkih, ki kaj spremenijo, preveriti, s katere strani prihajajo:
+// - z nedovoljene strani so zavrnjeni vedno (tudi prijava, da tuja stran
+//   uporabnika ne more prijaviti v svoj račun)
+// - zahtevek, ki se avtenticira s piškotkom, mora imeti glavo Origin
+// Zahtevki z glavo Authorization (mobilna aplikacija) niso ranljivi za CSRF,
+// ker jih brskalnik ne more poslati sam od sebe.
+const VARNE_METODE = new Set(['GET', 'HEAD', 'OPTIONS']);
+const preveriIzvor = (imePiskotka) => (req, res, next) => {
+    if (VARNE_METODE.has(req.method)) return next();
+
+    const origin = req.headers.origin;
+    const lastniIzvor = `${req.protocol}://${req.get('host')}`;
+    if (origin) {
+        if (origin === lastniIzvor || jeDovoljen(origin)) return next();
+        return res.status(403).json({ message: 'Zahtevek z nedovoljene strani.' });
+    }
+    if (req.cookies?.[imePiskotka] && !req.headers.authorization) {
+        return res.status(403).json({ message: 'Zahtevek brez izvora ni dovoljen.' });
+    }
+    next();
+};
 
 const helmetMiddleware = helmet({
     // Plakate iz /uploads prikazuje spletna stran z drugega izvora
@@ -60,4 +83,10 @@ const prijavaLimiter = omejitev(Number(process.env.LOGIN_RATE_LIMIT) || 10, 15 *
 });
 const registracijaLimiter = omejitev(Number(process.env.REGISTER_RATE_LIMIT) || 5, 60 * 60 * 1000);
 
-module.exports = { corsMiddleware, helmetMiddleware, prijavaLimiter, registracijaLimiter };
+module.exports = {
+    corsMiddleware,
+    helmetMiddleware,
+    preveriIzvor,
+    prijavaLimiter,
+    registracijaLimiter,
+};

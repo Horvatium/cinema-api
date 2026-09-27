@@ -5,6 +5,8 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const db = require('../db');
 const { validiraj, sheme } = require('../validacija');
+const auth = require('../middleware/auth');
+const { nastaviSejo, pobrisiSejo } = require('../seja');
 const { sendVerifyEmail } = require('../email');
 require('dotenv').config();
 
@@ -148,9 +150,16 @@ router.post('/login', validiraj(sheme.prijava), async (req, res) => {
             expiresIn: '8h',
         });
 
+        // Spletna aplikacija uporablja piškotek httpOnly, mobilna aplikacija pa
+        // žeton iz odgovora (v glavi Authorization). Žeton v odgovoru je za zdaj
+        // na voljo vsem, dokler spletna aplikacija ne preide na piškotek.
+        nastaviSejo(res, token);
+        const { exp } = jwt.decode(token);
+
         res.json({
             message: 'Prijava uspešna!',
             token,
+            expiresAt: new Date(exp * 1000).toISOString(),
             user: {
                 id: user.id,
                 first_name: user.first_name,
@@ -163,6 +172,35 @@ router.post('/login', validiraj(sheme.prijava), async (req, res) => {
         req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku. Poskusite znova.' });
     }
+});
+
+// TRENUTNI UPORABNIK
+// Spletna aplikacija žetona v piškotku ne more prebrati, zato ob nalaganju
+// strani tu izve, ali je kdo prijavljen, kdo in kdaj seja poteče
+router.get('/me', auth, async (req, res) => {
+    try {
+        const [users] = await db.query(
+            'SELECT id, first_name, last_name, email, role FROM users WHERE id = ?',
+            [req.user.id]
+        );
+        // Uporabnik je bil medtem izbrisan: seja ni več veljavna
+        if (users.length === 0) {
+            pobrisiSejo(res);
+            return res.status(401).json({ message: 'Uporabnik ne obstaja.' });
+        }
+        res.json({ user: users[0], expiresAt: new Date(req.user.exp * 1000).toISOString() });
+    } catch (err) {
+        req.log.error(err);
+        res.status(500).json({ message: 'Napaka na strežniku.' });
+    }
+});
+
+// ODJAVA
+// Pobriše piškotek seje. Pot ne zahteva prijave, da odjava uspe tudi s
+// poteklim žetonom.
+router.post('/logout', (req, res) => {
+    pobrisiSejo(res);
+    res.json({ message: 'Odjava uspešna.' });
 });
 
 module.exports = router;

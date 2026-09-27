@@ -9,12 +9,15 @@ const logger = require('./logger');
 const db = require('./db');
 const swaggerUi = require('swagger-ui-express');
 const openapi = require('./openapi');
+const cookieParser = require('cookie-parser');
 const {
     corsMiddleware,
     helmetMiddleware,
+    preveriIzvor,
     prijavaLimiter,
     registracijaLimiter,
 } = require('./security');
+const { IME_PISKOTKA } = require('./seja');
 const app = express();
 
 // Aplikacija teče za posrednikom (Railway), zato zaupamo glavi
@@ -46,6 +49,8 @@ app.use(
 );
 app.use(helmetMiddleware);
 app.use(corsMiddleware);
+app.use(cookieParser());
+app.use(preveriIzvor(IME_PISKOTKA));
 
 // Stripov webhook potrebuje surovo telo za preverjanje podpisa, zato je
 // registriran pred express.json(), ki bi telo že razčlenil

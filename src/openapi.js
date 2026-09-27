@@ -127,7 +127,7 @@ module.exports = {
         '/api/auth/login': {
             post: {
                 tags: ['Avtentikacija'],
-                summary: 'Prijava; vrne JWT',
+                summary: 'Prijava; nastavi piškotek seje in vrne JWT',
                 requestBody: telo('Prijava'),
                 responses: {
                     200: { description: 'Prijava uspela', content: json('OdgovorPrijave') },
@@ -136,6 +136,40 @@ module.exports = {
                     403: { description: 'E-poštni naslov še ni potrjen' },
                     429: { description: 'Preveč neuspešnih poskusov z istega naslova IP' },
                 },
+            },
+        },
+        '/api/auth/me': {
+            get: {
+                tags: ['Avtentikacija'],
+                summary: 'Trenutno prijavljeni uporabnik in rok seje',
+                security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+                responses: {
+                    200: {
+                        description: 'Prijavljen uporabnik',
+                        content: {
+                            'application/json': {
+                                example: {
+                                    user: {
+                                        id: 2,
+                                        first_name: 'Demo',
+                                        last_name: 'Uporabnik',
+                                        email: 'demo@kinoplex.test',
+                                        role: 'customer',
+                                    },
+                                    expiresAt: '2026-10-01T20:00:00.000Z',
+                                },
+                            },
+                        },
+                    },
+                    401: napaka,
+                },
+            },
+        },
+        '/api/auth/logout': {
+            post: {
+                tags: ['Avtentikacija'],
+                summary: 'Odjava: pobriše piškotek seje',
+                responses: { 200: sporocilo },
             },
         },
         '/api/films': {
@@ -450,6 +484,8 @@ module.exports = {
     components: {
         securitySchemes: {
             bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+            // Spletna aplikacija: piškotek httpOnly, ki ga nastavi prijava
+            cookieAuth: { type: 'apiKey', in: 'cookie', name: 'kinoplex_seja' },
         },
         schemas: {
             Sporocilo: {

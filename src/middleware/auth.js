@@ -1,13 +1,15 @@
 const jwt = require('jsonwebtoken');
+const { IME_PISKOTKA } = require('../seja');
 require('dotenv').config();
 
-// Vmesna oprema, ki varuje zaščitene poti. Ob uspehu na req.user pripne
-// vsebino žetona ({ id, role }), tako da poznejšim preverjanjem vloge ni
-// treba v bazo.
+// Vmesna oprema, ki varuje zaščitene poti. Žeton sprejme iz glave
+// Authorization (mobilna aplikacija, Swagger) ali iz piškotka httpOnly
+// (spletna aplikacija). Ob uspehu na req.user pripne vsebino žetona
+// ({ id, role, exp }), tako da poznejšim preverjanjem vloge ni treba v bazo.
 module.exports = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     // Pričakujemo obliko "Bearer <žeton>", zato vzamemo drugi del
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = (authHeader && authHeader.split(' ')[1]) || req.cookies?.[IME_PISKOTKA];
 
     if (!token) {
         return res.status(401).json({ message: 'Dostop zavrnjen. Ni bil predložen žeton.' });
