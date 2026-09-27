@@ -27,11 +27,12 @@ nastal kot diplomska naloga in deluje v produkciji.
 - **Brez dvojnih rezervacij pri sočasnih zahtevkih.** Napako je razkril test, ki za isti
   sedež pošlje več zahtevkov hkrati, popravljena pa je z zaklepanjem vrstic. Glej
   [spodaj](#napaka-z-dvojno-rezervacijo).
-- **Integracijski testi proti pravi bazi MySQL**, ne proti nadomestkom: 103 teste z Jestom in
+- **Integracijski testi proti pravi bazi MySQL**, ne proti nadomestkom: 121 testov z Jestom in
   Supertestom, ki v CI tečejo proti MySQL 8.4.
-- **Varnost in validacija:** varnostne glave (helmet), CORS omejen na spletno stran, omejitev
-  poskusov prijave in registracije ter validacija vseh vhodnih podatkov z zod.
-- **Dokumentacija na [`/api/docs`](https://cinema-api-production-a533.up.railway.app/api/docs/)**
+- **Varnost in validacija:** seja spletne aplikacije v piškotku httpOnly z zaščito pred CSRF,
+  varnostne glave (helmet), CORS omejen na spletno stran, omejitev poskusov prijave in
+  registracije ter validacija vseh vhodnih podatkov z zod.
+- **Dokumentacija na [`/api/docs`](https://api.kinoplex.si/api/docs/)**
   (OpenAPI 3.1, Swagger UI), strukturirano beleženje s pino in pot `/health` za preverjanje
   delovanja.
 - **Lokalni zagon z enim ukazom** z Docker Compose, skupaj z bazo in demo podatki.
@@ -51,7 +52,11 @@ flowchart LR
 ```
 
 Avtentikacija temelji na žetonih JWT, ki jih podpiše API; poti samo za skrbnike preverijo vlogo,
-zapisano v žetonu. Dostop do baze poteka prek bazena povezav `mysql2`, zapisi v več korakih
+zapisano v žetonu. Spletna aplikacija žeton dobi v piškotku `kinoplex_seja` (HttpOnly, Secure,
+SameSite=Lax), ki ga JavaScript ne more prebrati. API je na `api.kinoplex.si`, torej na istem
+mestu kot `kinoplex.si`, zato brskalnik piškotek obravnava kot piškotek prve osebe. Zahtevki, ki
+kaj spremenijo, morajo priti z dovoljene strani (preverjanje glave `Origin` kot zaščita pred
+CSRF). Mobilna aplikacija žeton pošilja v glavi `Authorization`. Dostop do baze poteka prek bazena povezav `mysql2`, zapisi v več korakih
 (rezervacije, plačila, ustvarjanje dvorane s sedeži) pa tečejo v transakcijah na namenski
 povezavi.
 
@@ -196,6 +201,7 @@ zato lokalni `.env` testov nikoli ne more usmeriti na produkcijo. Za drug strež
 | `health.test.js`             | `/health`, ID zahtevka, 404 in neveljaven JSON                              |
 | `docs.test.js`               | dokumentacija in ujemanje dokumentiranih poti s kodo                        |
 | `upload.test.js`             | nalaganje plakatov: vrste datotek, napaka pri zapisu na disk                |
+| `seja.test.js`               | piškotek seje, /auth/me, odjava, zaščita pred CSRF                          |
 
 Druge skripte: `npm run lint`, `npm run format`, `npm run format:check`.
 
@@ -204,7 +210,7 @@ Druge skripte: `npm run lint`, `npm run format`, `npm run format:check`.
 Podrobna dokumentacija z vsemi polji in odgovori je na `/api/docs` (Swagger UI). Na produkciji
 je tam mogoče preizkusiti poti GET, lokalno in v Dockerju vse.
 
-Vse poti se začnejo z `/api`. 🔒 zahteva JWT (`Authorization: Bearer <žeton>`),
+Vse poti se začnejo z `/api`. 🔒 zahteva prijavo (piškotek seje ali `Authorization: Bearer <žeton>`),
 👑 zahteva vlogo skrbnika. Neveljavni podatki vrnejo `400` s poljem `napake`
 (`[{ polje, sporocilo }]`).
 
@@ -213,7 +219,9 @@ Vse poti se začnejo z `/api`. 🔒 zahteva JWT (`Authorization: Bearer <žeton>
 | POST              | `/auth/register`                 | Registracija; pošlje potrditveno e-sporočilo                 |
 | GET               | `/auth/verify/:token`            | Potrditev e-poštnega naslova                                 |
 | POST              | `/auth/resend-verification`      | Ponovno pošiljanje potrditvenega sporočila                   |
-| POST              | `/auth/login`                    | Prijava, vrne JWT                                            |
+| POST              | `/auth/login`                    | Prijava: nastavi piškotek seje; mobilni aplikaciji vrne JWT  |
+| GET               | `/auth/me`                       | Prijavljeni uporabnik in rok seje 🔒                         |
+| POST              | `/auth/logout`                   | Odjava: pobriše piškotek seje                                |
 | GET               | `/films`, `/films/:id`           | Seznam filmov, podrobnosti filma                             |
 | POST, PUT, DELETE | `/films`, `/films/:id`           | Upravljanje filmov 👑                                        |
 | GET               | `/screenings`                    | Prihodnje predstave s podatki o filmu in dvorani             |
@@ -243,6 +251,7 @@ Vse poti se začnejo z `/api`. 🔒 zahteva JWT (`Authorization: Bearer <žeton>
 │   ├── app.js             aplikacija Express: vmesna oprema in poti
 │   ├── db.js              bazen povezav MySQL
 │   ├── seats.js           preverjanje sedežev, skupno za poti rezervacij
+│   ├── seja.js            piškotek seje (httpOnly)
 │   ├── potrditev.js       idempotentna potrditev plačila (webhook in /confirm)
 │   ├── validacija.js      sheme zod in vmesna oprema validiraj()
 │   ├── security.js        helmet, CORS, omejitev poskusov

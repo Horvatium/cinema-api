@@ -26,11 +26,12 @@ in production.
   key make sure a reservation is confirmed, and money refunded, at most once.
 - **No double booking under concurrency.** Found with a test that fires parallel requests
   for the same seat, then fixed with row locking. See [below](#the-double-booking-bug).
-- **Integration tests against real MySQL**, not mocks: 103 Jest + Supertest tests, run in CI
+- **Integration tests against real MySQL**, not mocks: 121 Jest + Supertest tests, run in CI
   against a MySQL 8.4 service container.
-- **Security and validation:** security headers (helmet), CORS restricted to the web app, rate
-  limiting on login and registration, and zod validation of every request body.
-- **Docs at [`/api/docs`](https://cinema-api-production-a533.up.railway.app/api/docs/)**
+- **Security and validation:** web sessions in an httpOnly cookie with CSRF protection,
+  security headers (helmet), CORS restricted to the web app, rate limiting on login and
+  registration, and zod validation of every request body.
+- **Docs at [`/api/docs`](https://api.kinoplex.si/api/docs/)**
   (OpenAPI 3.1, Swagger UI), structured logging with pino, and a `/health` endpoint.
 - **One-command local setup** with Docker Compose, including a seeded database.
 - **CI/CD** with GitHub Actions: lint, tests, Docker build and a smoke test on every push;
@@ -49,7 +50,11 @@ flowchart LR
 ```
 
 Authentication uses JWTs signed by the API; admin-only routes check the role stored in the
-token. Database access goes through a `mysql2` connection pool, and multi-step writes
+token. The web app gets the token in the `kinoplex_seja` cookie (HttpOnly, Secure,
+SameSite=Lax), which JavaScript cannot read. The API lives on `api.kinoplex.si`, the same site
+as `kinoplex.si`, so browsers treat it as a first-party cookie. Requests that change data must
+come from an allowed origin (an `Origin` header check as CSRF protection). The mobile app sends
+the token in the `Authorization` header. Database access goes through a `mysql2` connection pool, and multi-step writes
 (reservations, payments, creating a room with its seats) run in transactions on a dedicated
 connection.
 
@@ -195,6 +200,7 @@ and `TEST_DB_NAME`.
 | `health.test.js`             | `/health`, request IDs, 404 and malformed JSON                     |
 | `docs.test.js`               | docs, and that every documented route exists                       |
 | `upload.test.js`             | poster uploads: file types, disk write errors                      |
+| `seja.test.js`               | session cookie, /auth/me, logout, CSRF protection                  |
 
 Other scripts: `npm run lint`, `npm run format`, `npm run format:check`.
 
@@ -203,36 +209,38 @@ Other scripts: `npm run lint`, `npm run format`, `npm run format:check`.
 Full documentation with every field and response is at `/api/docs` (Swagger UI). In
 production, GET routes can be tried there; locally and in Docker, all of them.
 
-All routes are prefixed with `/api`. 🔒 needs a JWT (`Authorization: Bearer <token>`),
+All routes are prefixed with `/api`. 🔒 needs a session (cookie or `Authorization: Bearer <token>`),
 👑 needs the admin role. Invalid input returns `400` with a `napake` field
 (`[{ polje, sporocilo }]`, i.e. field and message).
 
-| Method            | Route                            | Description                                                    |
-| ----------------- | -------------------------------- | -------------------------------------------------------------- |
-| POST              | `/auth/register`                 | Register; sends a verification email                           |
-| GET               | `/auth/verify/:token`            | Verify an email address                                        |
-| POST              | `/auth/resend-verification`      | Resend the verification email                                  |
-| POST              | `/auth/login`                    | Log in, returns a JWT                                          |
-| GET               | `/films`, `/films/:id`           | List films, film details                                       |
-| POST, PUT, DELETE | `/films`, `/films/:id`           | Manage films 👑                                                |
-| GET               | `/screenings`                    | Upcoming screenings with film and room details                 |
-| GET               | `/screenings/:id/seats`          | Seat map with availability                                     |
-| POST, PUT, DELETE | `/screenings`, `/screenings/:id` | Manage screenings (overlap check per room) 👑                  |
-| GET               | `/rooms`                         | List rooms                                                     |
-| POST, PUT, DELETE | `/rooms`, `/rooms/:id`           | Manage rooms; seats are generated automatically 👑             |
-| POST              | `/payments/create-intent`        | Hold seats for 10 minutes and create a Stripe PaymentIntent 🔒 |
-| POST              | `/payments/confirm`              | Verify the payment with Stripe and confirm the reservation 🔒  |
-| POST              | `/payments/webhook`              | Stripe webhook `payment_intent.succeeded` (Stripe signature)   |
-| POST              | `/payments/cancel-intent`        | Release held seats 🔒                                          |
-| POST              | `/reservations`                  | Book without payment (used by the mobile app) 🔒               |
-| GET               | `/reservations/my`               | The user's reservations 🔒                                     |
-| PUT               | `/reservations/:id/cancel`       | Cancel a reservation 🔒                                        |
-| GET               | `/reservations`                  | All reservations 👑                                            |
-| POST              | `/upload/poster`                 | Upload a film poster 👑                                        |
-| GET, DELETE       | `/users`, `/users/:id`           | Manage users 👑                                                |
-| POST              | `/notifications/token`           | Save an Expo push token 🔒                                     |
-| GET               | `/health` (no `/api`)            | Health check: 200 when the database is reachable, else 503     |
-| GET               | `/docs`, `/openapi.json`         | Docs (Swagger UI) and the OpenAPI spec                         |
+| Method            | Route                            | Description                                                      |
+| ----------------- | -------------------------------- | ---------------------------------------------------------------- |
+| POST              | `/auth/register`                 | Register; sends a verification email                             |
+| GET               | `/auth/verify/:token`            | Verify an email address                                          |
+| POST              | `/auth/resend-verification`      | Resend the verification email                                    |
+| POST              | `/auth/login`                    | Log in: sets the session cookie; returns a JWT to the mobile app |
+| GET               | `/auth/me`                       | Current user and session expiry 🔒                               |
+| POST              | `/auth/logout`                   | Log out: clears the session cookie                               |
+| GET               | `/films`, `/films/:id`           | List films, film details                                         |
+| POST, PUT, DELETE | `/films`, `/films/:id`           | Manage films 👑                                                  |
+| GET               | `/screenings`                    | Upcoming screenings with film and room details                   |
+| GET               | `/screenings/:id/seats`          | Seat map with availability                                       |
+| POST, PUT, DELETE | `/screenings`, `/screenings/:id` | Manage screenings (overlap check per room) 👑                    |
+| GET               | `/rooms`                         | List rooms                                                       |
+| POST, PUT, DELETE | `/rooms`, `/rooms/:id`           | Manage rooms; seats are generated automatically 👑               |
+| POST              | `/payments/create-intent`        | Hold seats for 10 minutes and create a Stripe PaymentIntent 🔒   |
+| POST              | `/payments/confirm`              | Verify the payment with Stripe and confirm the reservation 🔒    |
+| POST              | `/payments/webhook`              | Stripe webhook `payment_intent.succeeded` (Stripe signature)     |
+| POST              | `/payments/cancel-intent`        | Release held seats 🔒                                            |
+| POST              | `/reservations`                  | Book without payment (used by the mobile app) 🔒                 |
+| GET               | `/reservations/my`               | The user's reservations 🔒                                       |
+| PUT               | `/reservations/:id/cancel`       | Cancel a reservation 🔒                                          |
+| GET               | `/reservations`                  | All reservations 👑                                              |
+| POST              | `/upload/poster`                 | Upload a film poster 👑                                          |
+| GET, DELETE       | `/users`, `/users/:id`           | Manage users 👑                                                  |
+| POST              | `/notifications/token`           | Save an Expo push token 🔒                                       |
+| GET               | `/health` (no `/api`)            | Health check: 200 when the database is reachable, else 503       |
+| GET               | `/docs`, `/openapi.json`         | Docs (Swagger UI) and the OpenAPI spec                           |
 
 ## Project structure
 
@@ -242,6 +250,7 @@ All routes are prefixed with `/api`. 🔒 needs a JWT (`Authorization: Bearer <t
 │   ├── app.js             Express app: middleware and routes
 │   ├── db.js              MySQL connection pool
 │   ├── seats.js           seat validation shared by booking routes
+│   ├── seja.js            session cookie (httpOnly)
 │   ├── potrditev.js       idempotent payment confirmation (webhook and /confirm)
 │   ├── validacija.js      zod schemas and the validiraj() middleware
 │   ├── security.js        helmet, CORS, rate limiting
