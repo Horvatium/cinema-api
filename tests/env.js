@@ -19,6 +19,10 @@ Object.assign(process.env, {
     // Teci kot na razvijalčevem računalniku v Sloveniji, da testi ujamejo kodo,
     // ki tiho predpostavlja, da strežnik teče v UTC (kot Railway in CI)
     TZ: 'Europe/Ljubljana',
+    // Testi se večkrat zapored prijavijo, zato so meje visoke; omejitev
+    // sama se preverja v security.test.js
+    LOGIN_RATE_LIMIT: '1000',
+    REGISTER_RATE_LIMIT: '1000',
 });
 
 // Testna baza se izbriše in ustvari na novo, zato zavrni vse, kar ni videti
