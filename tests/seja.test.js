@@ -30,6 +30,25 @@ describe('prijava', () => {
         expect(piskotek).toMatch(/Max-Age=28800/);
     });
 
+    it('brskalniku žetona ne vrne v odgovoru (samo v piškotku)', async () => {
+        const res = await request(app)
+            .post('/api/auth/login')
+            .set('Origin', STRAN)
+            .send({ email: 'demo@kinoplex.test', password: 'Demo123!' });
+
+        expect(res.status).toBe(200);
+        expect(res.body.token).toBeUndefined();
+        expect(res.body.user.email).toBe('demo@kinoplex.test');
+    });
+
+    it('mobilni aplikaciji (brez glave Origin) žeton vrne v odgovoru', async () => {
+        const res = await request(app)
+            .post('/api/auth/login')
+            .send({ email: 'demo@kinoplex.test', password: 'Demo123!' });
+
+        expect(res.body.token).toEqual(expect.any(String));
+    });
+
     it('vrne rok seje', async () => {
         const res = await request(app)
             .post('/api/auth/login')

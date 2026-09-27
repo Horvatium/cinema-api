@@ -151,14 +151,17 @@ router.post('/login', validiraj(sheme.prijava), async (req, res) => {
         });
 
         // Spletna aplikacija uporablja piškotek httpOnly, mobilna aplikacija pa
-        // žeton iz odgovora (v glavi Authorization). Žeton v odgovoru je za zdaj
-        // na voljo vsem, dokler spletna aplikacija ne preide na piškotek.
+        // žeton iz odgovora (pošilja ga v glavi Authorization). Brskalnik pri
+        // zahtevku POST vedno pošlje glavo Origin, mobilna aplikacija je ne, zato
+        // žeton v odgovoru dobi samo odjemalec brez nje: JavaScript na spletni
+        // strani žetona tako nikoli ne vidi, niti ob prijavi.
         nastaviSejo(res, token);
         const { exp } = jwt.decode(token);
+        const brskalnik = Boolean(req.headers.origin);
 
         res.json({
             message: 'Prijava uspešna!',
-            token,
+            ...(brskalnik ? {} : { token }),
             expiresAt: new Date(exp * 1000).toISOString(),
             user: {
                 id: user.id,

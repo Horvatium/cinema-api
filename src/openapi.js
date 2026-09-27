@@ -538,7 +538,12 @@ module.exports = {
                 type: 'object',
                 properties: {
                     message: { type: 'string' },
-                    token: { type: 'string', description: 'JWT, velja 8 ur' },
+                    token: {
+                        type: 'string',
+                        description:
+                            'JWT, velja 8 ur. Samo za odjemalce brez glave Origin (mobilna aplikacija); brskalnik dobi sejo samo v piškotku httpOnly.',
+                    },
+                    expiresAt: { type: 'string', description: 'Rok seje (ISO 8601)' },
                     user: {
                         type: 'object',
                         properties: {
