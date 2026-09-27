@@ -27,7 +27,7 @@ nastal kot diplomska naloga in deluje v produkciji.
 - **Brez dvojnih rezervacij pri sočasnih zahtevkih.** Napako je razkril test, ki za isti
   sedež pošlje več zahtevkov hkrati, popravljena pa je z zaklepanjem vrstic. Glej
   [spodaj](#napaka-z-dvojno-rezervacijo).
-- **Integracijski testi proti pravi bazi MySQL**, ne proti nadomestkom: 98 testov z Jestom in
+- **Integracijski testi proti pravi bazi MySQL**, ne proti nadomestkom: 103 teste z Jestom in
   Supertestom, ki v CI tečejo proti MySQL 8.4.
 - **Varnost in validacija:** varnostne glave (helmet), CORS omejen na spletno stran, omejitev
   poskusov prijave in registracije ter validacija vseh vhodnih podatkov z zod.
@@ -195,6 +195,7 @@ zato lokalni `.env` testov nikoli ne more usmeriti na produkcijo. Za drug strež
 | `security.test.js`           | varnostne glave, CORS, omejitev poskusov prijave                            |
 | `health.test.js`             | `/health`, ID zahtevka, 404 in neveljaven JSON                              |
 | `docs.test.js`               | dokumentacija in ujemanje dokumentiranih poti s kodo                        |
+| `upload.test.js`             | nalaganje plakatov: vrste datotek, napaka pri zapisu na disk                |
 
 Druge skripte: `npm run lint`, `npm run format`, `npm run format:check`.
 

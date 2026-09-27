@@ -26,7 +26,7 @@ in production.
   key make sure a reservation is confirmed, and money refunded, at most once.
 - **No double booking under concurrency.** Found with a test that fires parallel requests
   for the same seat, then fixed with row locking. See [below](#the-double-booking-bug).
-- **Integration tests against real MySQL**, not mocks: 98 Jest + Supertest tests, run in CI
+- **Integration tests against real MySQL**, not mocks: 103 Jest + Supertest tests, run in CI
   against a MySQL 8.4 service container.
 - **Security and validation:** security headers (helmet), CORS restricted to the web app, rate
   limiting on login and registration, and zod validation of every request body.
@@ -194,6 +194,7 @@ and `TEST_DB_NAME`.
 | `security.test.js`           | security headers, CORS, login rate limiting                        |
 | `health.test.js`             | `/health`, request IDs, 404 and malformed JSON                     |
 | `docs.test.js`               | docs, and that every documented route exists                       |
+| `upload.test.js`             | poster uploads: file types, disk write errors                      |
 
 Other scripts: `npm run lint`, `npm run format`, `npm run format:check`.
 
