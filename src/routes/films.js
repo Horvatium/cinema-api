@@ -4,6 +4,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const samoSkrbnik = require('../middleware/admin');
+const { validiraj, sheme } = require('../validacija');
 
 // PRIDOBI VSE FILME
 router.get('/', async (req, res) => {
@@ -31,11 +33,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // DODAJ FILM (samo admin)
-router.post('/', auth, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo skrbniki.' });
-    }
-
+router.post('/', auth, samoSkrbnik, validiraj(sheme.film), async (req, res) => {
     const {
         title,
         title_sl,
@@ -51,12 +49,6 @@ router.post('/', auth, async (req, res) => {
         trailer_url,
         cast_members,
     } = req.body;
-
-    if (!title || !genre || !duration_minutes || !age_rating) {
-        return res
-            .status(400)
-            .json({ message: 'Potrebni so: naslov, žanr, dolžina filma in starostna ocena.' });
-    }
 
     try {
         const [result] = await db.query(
@@ -85,11 +77,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // UREDI FILM (samo admin)
-router.put('/:id', auth, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo skrbniki.' });
-    }
-
+router.put('/:id', auth, samoSkrbnik, validiraj(sheme.filmPopravek), async (req, res) => {
     const {
         title,
         title_sl,
@@ -154,11 +142,7 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // ZBRIŠI FILM (samo admin)
-router.delete('/:id', auth, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo skrbniki.' });
-    }
-
+router.delete('/:id', auth, samoSkrbnik, async (req, res) => {
     try {
         // Preveri, ali ima film aktivna predvajanja — brez tega bi CASCADE
         // brez opozorila izbrisal tudi predvajanja in (morebiti plačane)

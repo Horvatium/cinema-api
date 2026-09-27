@@ -4,6 +4,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const auth = require('../middleware/auth');
+// Vloga se preveri pred nalaganjem, da se datoteka sploh ne zapiše na disk
+const samoSkrbnik = require('../middleware/admin');
 
 // Nastavitev, kam in kako se datoteke shranjujejo
 const storage = multer.diskStorage({
@@ -59,14 +61,6 @@ const upload = multer({
     fileFilter,
     limits: { fileSize: 5 * 1024 * 1024 }, // največ 5 MB
 });
-
-// Preverjanje vloge pred nalaganjem, da se datoteka sploh ne zapiše na disk
-const samoSkrbnik = (req, res, next) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo skrbniki.' });
-    }
-    next();
-};
 
 // Ovoj okoli multerja, da se napake vrnejo kot JSON in ne kot privzeta stran 500
 const naloziPlakat = (req, res, next) => {

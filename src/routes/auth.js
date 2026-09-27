@@ -4,17 +4,13 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const db = require('../db');
+const { validiraj, sheme } = require('../validacija');
 const { sendVerifyEmail } = require('../email');
 require('dotenv').config();
 
 // REGISTRACIJA
-router.post('/register', async (req, res) => {
+router.post('/register', validiraj(sheme.registracija), async (req, res) => {
     const { first_name, last_name, email, password, phone } = req.body;
-
-    // Preveri, ali so vsa obvezna polja izpolnjena
-    if (!first_name || !last_name || !email || !password) {
-        return res.status(400).json({ message: 'Prosim, izpolnite vsa obvezna polja.' });
-    }
 
     try {
         // Preveri, ali je elektronski naslov že registriran
@@ -85,12 +81,8 @@ router.get('/verify/:token', async (req, res) => {
 });
 
 // PONOVNO POŠILJANJE POTRDITVENEGA SPOROČILA
-router.post('/resend-verification', async (req, res) => {
+router.post('/resend-verification', validiraj(sheme.ponovnoPosiljanje), async (req, res) => {
     const { email } = req.body;
-
-    if (!email) {
-        return res.status(400).json({ message: 'Elektronski naslov je obvezen.' });
-    }
 
     try {
         const [users] = await db.query(
@@ -125,12 +117,8 @@ router.post('/resend-verification', async (req, res) => {
 });
 
 // PRIJAVA
-router.post('/login', async (req, res) => {
+router.post('/login', validiraj(sheme.prijava), async (req, res) => {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-        return res.status(400).json({ message: 'Prosim, navedite elektronski naslov in geslo.' });
-    }
 
     try {
         // Poišči uporabnika po elektronskem naslovu

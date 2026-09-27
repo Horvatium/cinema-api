@@ -2,13 +2,10 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const samoSkrbnik = require('../middleware/admin');
 
 // PRIDOBI VSE UPORABNIKE (samo admin)
-router.get('/', auth, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo admin.' });
-    }
-
+router.get('/', auth, samoSkrbnik, async (req, res) => {
     try {
         // Stolpce naštejemo izrecno, da zgoščena gesla in potrditveni žetoni
         // nikoli ne zapustijo strežnika
@@ -25,11 +22,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // ZBRIŠI UPORABNIKA (samo admin)
-router.delete('/:id', auth, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo admin.' });
-    }
-
+router.delete('/:id', auth, samoSkrbnik, async (req, res) => {
     const targetId = Number(req.params.id);
 
     // Skrbnik ne more izbrisati samega sebe

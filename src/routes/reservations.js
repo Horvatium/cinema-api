@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const samoSkrbnik = require('../middleware/admin');
+const { validiraj, sheme } = require('../validacija');
 const { stenskiCasZdaj } = require('../time');
 const { preveriSedeze } = require('../seats');
 const { sendReservationConfirmed, sendReservationCancelled } = require('../email');
@@ -50,11 +52,7 @@ router.get('/my', auth, async (req, res) => {
 });
 
 // Pridobi vse rezervacije (samo admin)
-router.get('/', auth, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo skrbniki.' });
-    }
-
+router.get('/', auth, samoSkrbnik, async (req, res) => {
     try {
         const [reservations] = await db.query(`
             SELECT 
@@ -92,12 +90,8 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Ustvari rezervacijo
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, validiraj(sheme.rezervacija), async (req, res) => {
     const { screening_id, seat_ids } = req.body;
-
-    if (!screening_id || !seat_ids || seat_ids.length === 0) {
-        return res.status(400).json({ message: 'Predstava in vsaj en sedež sta potrebna.' });
-    }
 
     // Dobi povezavo iz bazena za transakcijo
     const connection = await db.getConnection();

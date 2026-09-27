@@ -2,15 +2,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
-
-// Preverjanje vloge, ločeno od auth: auth pove, kdo je uporabnik,
-// ta funkcija pa, ali sme poseg izvesti
-const samoSkrbnik = (req, res, next) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo skrbniki.' });
-    }
-    next();
-};
+const samoSkrbnik = require('../middleware/admin');
+const { validiraj, sheme } = require('../validacija');
 
 // SEZNAM DVORAN
 router.get('/', async (req, res) => {
@@ -24,12 +17,8 @@ router.get('/', async (req, res) => {
 });
 
 // DODAJANJE DVORANE
-router.post('/', auth, samoSkrbnik, async (req, res) => {
+router.post('/', auth, samoSkrbnik, validiraj(sheme.dvorana), async (req, res) => {
     const { name, capacity, rows, seats_per_row } = req.body;
-
-    if (!name || !capacity) {
-        return res.status(400).json({ message: 'Ime in kapaciteta sta obvezna.' });
-    }
 
     // Privzeta razporeditev, če skrbnik ne poda svoje
     const stevilkaVrst = rows || Math.ceil(capacity / 10);
@@ -80,7 +69,7 @@ router.post('/', auth, samoSkrbnik, async (req, res) => {
 });
 
 // UREJANJE DVORANE
-router.put('/:id', auth, samoSkrbnik, async (req, res) => {
+router.put('/:id', auth, samoSkrbnik, validiraj(sheme.dvoranaPopravek), async (req, res) => {
     const { name, capacity } = req.body;
     try {
         await db.query(

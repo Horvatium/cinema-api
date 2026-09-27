@@ -2,17 +2,14 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { validiraj, sheme } = require('../validacija');
 
 // Napravo poveže z uporabnikom: mobilna aplikacija sem pošlje svoj Expov
 // žeton, strežnik pa ga uporabi, ko mora poslati potisno obvestilo
 // (npr. ob odpovedi predvajanja).
 // Shrani žeton za potisna obvestila uporabnika
-router.post('/token', auth, async (req, res) => {
+router.post('/token', auth, validiraj(sheme.zetonObvestil), async (req, res) => {
     const { token } = req.body;
-
-    if (!token) {
-        return res.status(400).json({ message: 'Žeton je obvezen.' });
-    }
 
     try {
         // Shrani žeton v tabelo uporabnikov

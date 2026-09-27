@@ -3,6 +3,8 @@ const router = express.Router();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const auth = require('../middleware/auth');
+const samoSkrbnik = require('../middleware/admin');
+const { validiraj, sheme } = require('../validacija');
 const { stenskiCasZdaj } = require('../time');
 const { sendScreeningDeleted } = require('../email');
 const { sendPushNotification } = require('../push');
@@ -125,16 +127,8 @@ router.get('/:id/seats', async (req, res) => {
 });
 
 // DODAJ PREDSTAVO (samo admin)
-router.post('/', auth, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo skrbniki.' });
-    }
-
+router.post('/', auth, samoSkrbnik, validiraj(sheme.predstava), async (req, res) => {
     const { film_id, room_id, start_time, end_time, price } = req.body;
-
-    if (!film_id || !room_id || !start_time || !end_time || !price) {
-        return res.status(400).json({ message: 'Vsa polja so obvezna.' });
-    }
 
     try {
         // Preveri ali obstajajo neskladja v urniku za isto dvorano
@@ -166,11 +160,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // UREDI PREDSTAVO (samo admin)
-router.put('/:id', auth, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo skrbniki.' });
-    }
-
+router.put('/:id', auth, samoSkrbnik, validiraj(sheme.predstavaPopravek), async (req, res) => {
     const { film_id, room_id, start_time, end_time, price } = req.body;
 
     try {
@@ -232,11 +222,7 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // ZBRIŠI PREDSTAVO (samo skrbniki)
-router.delete('/:id', auth, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Samo skrbniki.' });
-    }
-
+router.delete('/:id', auth, samoSkrbnik, async (req, res) => {
     try {
         // Pred brisanjem pridobi podrobnosti predstave in vse prizadete uporabnike
         const [affected] = await db.query(

@@ -3,6 +3,7 @@ const router = express.Router();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { validiraj, sheme } = require('../validacija');
 const { stenskiCasZdaj } = require('../time');
 const { preveriSedeze } = require('../seats');
 const { potrdiPlacilo, ZASEDENI } = require('../potrditev');
@@ -11,12 +12,8 @@ const { potrdiPlacilo, ZASEDENI } = require('../potrditev');
 const ZADRZANJE_MINUT = 10;
 
 // USTVARI NAMERO PLAČILA IN ZADRŽI SEDEŽE
-router.post('/create-intent', auth, async (req, res) => {
+router.post('/create-intent', auth, validiraj(sheme.rezervacija), async (req, res) => {
     const { screening_id, seat_ids } = req.body;
-
-    if (!screening_id || !seat_ids || seat_ids.length === 0) {
-        return res.status(400).json({ message: 'Predvajanje in sedeži so obvezni.' });
-    }
 
     const connection = await db.getConnection();
 
@@ -135,15 +132,11 @@ router.post('/create-intent', auth, async (req, res) => {
 // Brskalnik pokliče to pot takoj po plačilu, da stranka potrditev vidi takoj.
 // Isto rezervacijo potrdi tudi Stripov webhook (webhook.js), če se brskalnik
 // po plačilu zapre; obe poti uporabljata potrdiPlacilo, ki je idempotentna.
-router.post('/confirm', auth, async (req, res) => {
+router.post('/confirm', auth, validiraj(sheme.potrditevPlacila), async (req, res) => {
     // Sedeži se preberejo iz zadržanja v bazi, ne iz zahtevka: odjemalec bi
     // sicer lahko poslal druge (proste) sedeže in potrdil zadržanje sedežev,
     // ki jih je medtem kupil nekdo drug
     const { payment_intent_id, screening_id } = req.body;
-
-    if (!payment_intent_id || !screening_id) {
-        return res.status(400).json({ message: 'Manjkajo podatki o plačilu.' });
-    }
 
     try {
         // Preveri, ali je plačilo pri Stripe dejansko uspelo
@@ -195,12 +188,8 @@ router.post('/confirm', auth, async (req, res) => {
 });
 
 // PREKLIC ZADRŽANJA — sprosti sedeže, če uporabnik plačilo opusti
-router.post('/cancel-intent', auth, async (req, res) => {
+router.post('/cancel-intent', auth, validiraj(sheme.preklicZadrzanja), async (req, res) => {
     const { reservation_id } = req.body;
-
-    if (!reservation_id) {
-        return res.status(400).json({ message: 'Manjka številka rezervacije.' });
-    }
 
     const connection = await db.getConnection();
 
