@@ -6,6 +6,7 @@ const auth = require('../middleware/auth');
 const { stenskiCasZdaj } = require('../time');
 const { sendScreeningDeleted } = require('../email');
 const { sendPushNotification } = require('../push');
+const logger = require('../logger');
 
 // Poišče Stripovo namero plačila za dano rezervacijo prek metapodatkov
 // (payments.js ob ustvarjanju namere zapiše reservation_id v metadata) in ji
@@ -20,15 +21,16 @@ const refundReservation = async (reservationId) => {
         });
         const paymentIntent = found.data[0];
         if (!paymentIntent) {
-            console.error(
-                `Vračilo: namere plačila za rezervacijo ${reservationId} ni bilo mogoče najti.`
+            logger.warn(
+                { reservationId },
+                'Vračilo: namere plačila za rezervacijo ni mogoče najti'
             );
             return false;
         }
         await stripe.refunds.create({ payment_intent: paymentIntent.id });
         return true;
     } catch (err) {
-        console.error(`Vračilo za rezervacijo ${reservationId} ni uspelo:`, err.message);
+        logger.error({ err, reservationId }, 'Vračilo za rezervacijo ni uspelo');
         return false;
     }
 };
@@ -70,7 +72,7 @@ router.get('/', async (req, res) => {
         );
         res.json(screenings);
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -117,7 +119,7 @@ router.get('/:id/seats', async (req, res) => {
 
         res.json(seats);
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -158,7 +160,7 @@ router.post('/', auth, async (req, res) => {
         );
         res.status(201).json({ message: 'Predstava dodana uspešno!', id: result.insertId });
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -224,7 +226,7 @@ router.put('/:id', auth, async (req, res) => {
             affectedReservations: reservations[0].count,
         });
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -314,7 +316,7 @@ router.delete('/:id', auth, async (req, res) => {
                 `${refundCount} vračil(a) izvedenih.`,
         });
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });

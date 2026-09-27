@@ -49,7 +49,7 @@ router.post('/register', async (req, res) => {
             requiresVerification: true,
         });
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku. Poskusite znova.' });
     }
 });
@@ -79,7 +79,7 @@ router.get('/verify/:token', async (req, res) => {
             </body></html>
         `);
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).send('Napaka na strežniku.');
     }
 });
@@ -119,7 +119,7 @@ router.post('/resend-verification', async (req, res) => {
 
         res.json(splosnOdgovor);
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -172,7 +172,7 @@ router.post('/login', async (req, res) => {
             },
         });
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku. Poskusite znova.' });
     }
 });

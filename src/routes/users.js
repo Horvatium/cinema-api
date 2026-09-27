@@ -19,7 +19,7 @@ router.get('/', auth, async (req, res) => {
         );
         res.json(users);
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -63,7 +63,7 @@ router.delete('/:id', auth, async (req, res) => {
         }
         res.json({ message: 'Uporabnik uspešno izbrisan!' });
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });

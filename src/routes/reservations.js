@@ -44,7 +44,7 @@ router.get('/my', auth, async (req, res) => {
 
         res.json(reservations);
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -86,7 +86,7 @@ router.get('/', auth, async (req, res) => {
 
         res.json(reservations);
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -225,7 +225,7 @@ router.post('/', auth, async (req, res) => {
         });
     } catch (err) {
         await connection.rollback();
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     } finally {
         connection.release();
@@ -284,7 +284,7 @@ router.put('/:id/cancel', auth, async (req, res) => {
 
         res.json({ message: 'Rezervacija uspešno preklicana.' });
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });

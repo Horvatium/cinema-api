@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
         const [rooms] = await db.query('SELECT * FROM rooms ORDER BY name');
         res.json(rooms);
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -72,7 +72,7 @@ router.post('/', auth, samoSkrbnik, async (req, res) => {
         res.status(201).json({ id: room_id, name, capacity, seats_created: seatValues.length });
     } catch (err) {
         await connection.rollback();
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     } finally {
         connection.release();
@@ -89,7 +89,7 @@ router.put('/:id', auth, samoSkrbnik, async (req, res) => {
         );
         res.json({ message: 'Dvorana posodobljena.' });
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -112,7 +112,7 @@ router.delete('/:id', auth, samoSkrbnik, async (req, res) => {
         await db.query('DELETE FROM rooms WHERE id = ?', [req.params.id]);
         res.json({ message: 'Dvorana izbrisana.' });
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });

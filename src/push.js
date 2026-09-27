@@ -1,4 +1,5 @@
 const https = require('https');
+const logger = require('./logger');
 
 // Pošlji potisno obvestilo prek Expove storitve za potisna obvestila
 const sendPushNotification = async (pushToken, title, body, data = {}) => {
@@ -36,14 +37,14 @@ const sendPushNotification = async (pushToken, title, body, data = {}) => {
             let data = '';
             res.on('data', (chunk) => (data += chunk));
             res.on('end', () => {
-                console.log(`Potisno obvestilo poslano na ${pushToken}: ${title}`);
+                logger.info({ title }, 'Potisno obvestilo poslano');
                 resolve(data);
             });
         });
 
         // Napako pri omrežju samo zabeležimo in nadaljujemo
         req.on('error', (err) => {
-            console.error('Napaka pri pošiljanju potisnega obvestila:', err.message);
+            logger.error({ err }, 'Napaka pri pošiljanju potisnega obvestila');
             resolve(null);
         });
 

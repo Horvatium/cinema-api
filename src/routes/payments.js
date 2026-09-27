@@ -128,7 +128,7 @@ router.post('/create-intent', auth, async (req, res) => {
         });
     } catch (err) {
         await connection.rollback();
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Plačila ni bilo mogoče ustvariti.' });
     } finally {
         connection.release();
@@ -268,7 +268,7 @@ router.post('/confirm', auth, async (req, res) => {
                     );
                 }
             } catch (mailErr) {
-                console.error('Napaka pri pripravi e-sporočila:', mailErr.message);
+                req.log.error({ err: mailErr }, 'Napaka pri pripravi e-sporočila');
             }
 
             res.status(201).json({
@@ -283,7 +283,7 @@ router.post('/confirm', auth, async (req, res) => {
             connection.release();
         }
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -321,7 +321,7 @@ router.post('/cancel-intent', auth, async (req, res) => {
         res.json({ message: 'Sedeži so bili sproščeni.' });
     } catch (err) {
         await connection.rollback();
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     } finally {
         connection.release();

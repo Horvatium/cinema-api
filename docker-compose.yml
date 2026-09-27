@@ -50,6 +50,12 @@ services:
       - '5000:5000'
     volumes:
       - uploads:/app/uploads
+    healthcheck:
+      # /health vrne 200 samo, ko se API lahko poveže z bazo
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:5000/health']
+      interval: 5s
+      timeout: 5s
+      retries: 20
     depends_on:
       db:
         condition: service_healthy
@@ -63,7 +69,8 @@ services:
     ports:
       - '3000:80'
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   db-data:

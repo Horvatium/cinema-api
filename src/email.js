@@ -1,5 +1,6 @@
 require('dotenv').config();
 const db = require('./db');
+const logger = require('./logger');
 const { Resend } = require('resend');
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 // Znesek v slovenskem zapisu: decimalna vejica in znak za evro
@@ -15,7 +16,7 @@ const zabeleziPosiljanje = async (mailOptions, status, napaka = null) => {
         );
     } catch (err) {
         // Napaka pri beleženju ne sme vplivati na pošiljanje
-        console.error('Napaka pri beleženju e-pošte:', err.message);
+        logger.error({ err }, 'Napaka pri beleženju e-pošte');
     }
 };
 
@@ -327,12 +328,12 @@ const sendEmail = async (mailOptions) => {
     // Brez nastavljenih spremenljivk okolja pošiljanje preskočimo, a ne
     // vržemo napake — rezervacija mora ostati veljavna tudi brez e-pošte
     if (!resend) {
-        console.error('RESEND_API_KEY ni nastavljen — e-pošta ni poslana.');
+        logger.warn('RESEND_API_KEY ni nastavljen — e-pošta ni poslana');
         return;
     }
 
     if (!mailOptions.from) {
-        console.error('EMAIL_FROM ni nastavljen — e-pošta ni poslana.');
+        logger.warn('EMAIL_FROM ni nastavljen — e-pošta ni poslana');
         return;
     }
 
@@ -346,16 +347,19 @@ const sendEmail = async (mailOptions) => {
 
         if (error) {
             const sporocilo = error.message || JSON.stringify(error);
-            console.error('Napaka pri pošiljanju e-pošte:', sporocilo);
+            logger.error(
+                { napaka: sporocilo, subject: mailOptions.subject },
+                'Napaka pri pošiljanju e-pošte'
+            );
             await zabeleziPosiljanje(mailOptions, 'failed', sporocilo);
             return;
         }
 
-        console.log(`E-pošta poslana (id: ${data?.id})`);
+        logger.info({ id: data?.id, subject: mailOptions.subject }, 'E-pošta poslana');
         await zabeleziPosiljanje(mailOptions, 'sent');
     } catch (err) {
         // Napako zabeleži, a ne dovoli, da bi zrušila aplikacijo
-        console.error('Napaka pri pošiljanju e-pošte:', err.message);
+        logger.error({ err, subject: mailOptions.subject }, 'Napaka pri pošiljanju e-pošte');
         await zabeleziPosiljanje(mailOptions, 'failed', err.message);
     }
 };

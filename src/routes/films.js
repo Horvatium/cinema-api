@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
         const [films] = await db.query('SELECT * FROM films ORDER BY title ASC');
         res.json(films);
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -25,7 +25,7 @@ router.get('/:id', async (req, res) => {
         }
         res.json(films[0]);
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -79,7 +79,7 @@ router.post('/', auth, async (req, res) => {
         );
         res.status(201).json({ message: 'Film dodan uspešno!', id: result.insertId });
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -148,7 +148,7 @@ router.put('/:id', auth, async (req, res) => {
         }
         res.json({ message: 'Film uspešno posodobljen!' });
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
@@ -180,7 +180,7 @@ router.delete('/:id', auth, async (req, res) => {
         }
         res.json({ message: 'Film izbrisan uspešno!' });
     } catch (err) {
-        console.error(err);
+        req.log.error(err);
         res.status(500).json({ message: 'Napaka na strežniku.' });
     }
 });
