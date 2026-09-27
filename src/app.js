@@ -7,6 +7,8 @@ const crypto = require('crypto');
 const pinoHttp = require('pino-http');
 const logger = require('./logger');
 const db = require('./db');
+const swaggerUi = require('swagger-ui-express');
+const openapi = require('./openapi');
 const {
     corsMiddleware,
     helmetMiddleware,
@@ -89,6 +91,25 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
+
+// Dokumentacija API-ja (Swagger UI). Privzeto je v brskalniku mogoče
+// preizkusiti samo poti GET, ki ničesar ne spremenijo; DOCS_ALL_METHODS=true
+// (lokalno, Docker) omogoči vse metode.
+app.get('/api/openapi.json', (req, res) => res.json(openapi));
+app.use(
+    '/api/docs',
+    swaggerUi.serve,
+    swaggerUi.setup(openapi, {
+        customSiteTitle: 'KinoPlex API',
+        swaggerOptions: {
+            persistAuthorization: true,
+            supportedSubmitMethods:
+                process.env.DOCS_ALL_METHODS === 'true'
+                    ? ['get', 'post', 'put', 'delete', 'patch']
+                    : ['get'],
+        },
+    })
+);
 
 //Testiraj pot
 app.get('/', (req, res) => {

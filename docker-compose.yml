@@ -40,6 +40,7 @@ services:
       DB_SSL: 'false'
       JWT_SECRET: local-dev-secret
       PORT: 5000
+      DOCS_ALL_METHODS: 'true'
       # Plačila potrebujejo testne ključe Stripe: nastavi jih pred `docker compose up`
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
