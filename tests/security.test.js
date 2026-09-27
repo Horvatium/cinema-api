@@ -35,9 +35,22 @@ describe('CORS', () => {
         expect(await izvor('http://localhost:3000')).toBe('http://localhost:3000');
     });
 
+    it('dovoli naslov posamezne objave, kjer Vercel skrajša ime projekta', async () => {
+        const objava = 'https://cinema-3wakqen9w-horvatiums-projects.vercel.app';
+        expect(await izvor(objava)).toBe(objava);
+    });
+
     it('ne dovoli tujih strani', async () => {
         expect(await izvor('https://napadalec.example')).toBeUndefined();
         expect(await izvor('https://cinema-web.vercel.app.napadalec.example')).toBeUndefined();
+    });
+
+    it('ne dovoli projekta z enakim imenom v tuji ekipi na Vercelu', async () => {
+        expect(await izvor('https://cinema-web-napad.vercel.app')).toBeUndefined();
+        expect(await izvor('https://cinema-web-git-main-napadalec.vercel.app')).toBeUndefined();
+        expect(
+            await izvor('https://cinema-x-horvatiums-projects.vercel.app.napadalec.example')
+        ).toBeUndefined();
     });
 
     it('ne omejuje zahtevkov brez glave Origin (mobilna aplikacija)', async () => {

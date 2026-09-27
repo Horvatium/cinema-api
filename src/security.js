@@ -5,12 +5,18 @@ const helmet = require('helmet');
 const { rateLimit } = require('express-rate-limit');
 
 // Izvori, s katerih brskalnik sme klicati API. Privzeto produkcijska stran,
-// Vercelovi predogledi projekta cinema-web in lokalni razvoj; seznam se lahko
-// prepiše s CORS_ORIGINS (z vejicami ločeni naslovi).
+// Vercelovi predogledi in lokalni razvoj; seznam se lahko prepiše s
+// CORS_ORIGINS (z vejicami ločeni naslovi).
+//
+// Predogledi so omejeni na ekipo horvatiums-projects: naslov veje
+// (cinema-web-git-<veja>-horvatiums-projects.vercel.app) in naslov objave, kjer
+// Vercel ime projekta skrajša (cinema-<id>-horvatiums-projects.vercel.app).
+// Samo ime projekta ni dovolj, ker lahko projekt z imenom cinema-web-kaj
+// ustvari kdorkoli, CORS pa dovoljuje piškotke seje.
 const privzetiIzvori = [
     'https://www.kinoplex.si',
     'https://kinoplex.si',
-    /^https:\/\/cinema-web[a-z0-9-]*\.vercel\.app$/,
+    /^https:\/\/cinema-[a-z0-9-]+-horvatiums-projects\.vercel\.app$/,
     /^http:\/\/(localhost|127\.0\.0\.1):\d+$/,
 ];
 
