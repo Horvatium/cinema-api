@@ -74,9 +74,38 @@ jobs:
           done
           echo "API did not respond in time"
           exit 1
+      # Railway disk za plakate priklopi v lasti root. API se tu zažene z enakim
+      # diskom in nanj naloži plakat, kar preveri vstopno skripto v Dockerfilu.
+      - name: Upload a poster to a root-owned volume (as on Railway)
+        run: |
+          sudo mkdir -p /tmp/uploads
+          sudo chown root:root /tmp/uploads
+          sudo chmod 755 /tmp/uploads
+          docker compose stop api
+          docker compose run -d --rm --name api-root -p 5001:5000 -v /tmp/uploads:/app/uploads api
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:5001/health && break
+            sleep 2
+          done
+          TOKEN=$(curl -fsS -X POST http://localhost:5001/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"admin@kinoplex.test","password":"Admin123!"}' | jq -r .token)
+          # Datoteka z glavo PNG; API preverja začetne bajte
+          printf '\x89PNG\r\n\x1a\n0000000000000000' > poster.png
+          curl -fsS -H "Authorization: Bearer $TOKEN" \
+            -F "poster=@poster.png;type=image/png" \
+            http://localhost:5001/api/upload/poster | tee upload.json
+          grep -q '/uploads/posters/' upload.json
+          sudo ls -la /tmp/uploads/posters
+          # Strežnik mora teči kot node, ne kot root
+          docker exec api-root ps -o user,args | grep 'node server.js' | grep -v '^root'
       - name: Container logs
         if: failure()
-        run: docker compose logs
+        run: |
+          docker compose logs
+          docker logs api-root || true
       - name: Stop
         if: always()
-        run: docker compose down -v
+        run: |
+          docker stop api-root || true
+          docker compose down -v

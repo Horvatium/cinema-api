@@ -51,7 +51,9 @@ const fileFilter = (req, file, cb) => {
     const dovoljeneVrste = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
     if (!DOVOLJENE[ext] || !dovoljeneVrste.includes(file.mimetype)) {
-        return cb(new Error('Dovoljene so samo slike JPG, PNG in WEBP.'), false);
+        const napaka = new Error('Dovoljene so samo slike JPG, PNG in WEBP.');
+        napaka.status = 400;
+        return cb(napaka, false);
     }
     cb(null, true);
 };
@@ -72,8 +74,14 @@ const naloziPlakat = (req, res, next) => {
                     : 'Napaka pri nalaganju datoteke.';
             return res.status(400).json({ message: sporocilo });
         }
-        if (err) {
+        if (err?.status === 400) {
             return res.status(400).json({ message: err.message });
+        }
+        if (err) {
+            // Napaka pri zapisu na disk (npr. EACCES, poln disk): zabeležimo jo s
+            // podrobnostmi, odjemalcu pa ne izdamo notranjih poti
+            req.log.error({ err }, 'Plakata ni bilo mogoče shraniti na disk');
+            return res.status(500).json({ message: 'Slike ni bilo mogoče shraniti.' });
         }
         next();
     });
